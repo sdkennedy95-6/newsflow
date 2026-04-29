@@ -61,7 +61,7 @@ function rowToArticle(r: any): Article {
   }
 }
 
-export function useArticles(categories: Category[], userId: string | null) {
+export function useArticles(_categories: Category[], userId: string | null) {
   const [articlesByCategory, setArticlesByCategory] = useState<Record<string, Article[]>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})

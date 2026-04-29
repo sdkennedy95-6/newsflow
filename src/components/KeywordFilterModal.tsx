@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, KeyboardEvent } from 'react'
-import { X, Plus } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import type { KeyboardEvent } from 'react'
+import { X } from 'lucide-react'
 import type { KeywordFilter } from '../types'
 import { FILTER_COLORS } from '../hooks/useKeywordFilters'
 
@@ -59,14 +60,6 @@ export function KeywordFilterModal({ filter, onSave, onClose }: Props) {
   }
 
   const removeKeyword = (kw: string) => setKeywords(prev => prev.filter(k => k !== kw))
-
-  const validate = () => {
-    const e: Record<string, string> = {}
-    if (!name.trim()) e.name = 'Name is required'
-    if (keywords.length === 0) e.keywords = 'Add at least one keyword'
-    setErrors(e)
-    return Object.keys(e).length === 0
-  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

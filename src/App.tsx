@@ -3,13 +3,21 @@ import { useAuth } from './hooks/useAuth'
 import { useCategories } from './hooks/useCategories'
 import { useArticles } from './hooks/useArticles'
 import { useKeywordFilters } from './hooks/useKeywordFilters'
+import { useSaveLabels } from './hooks/useSaveLabels'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { ArticleFeed } from './components/ArticleFeed'
 import { CategoryModal } from './components/CategoryModal'
 import { KeywordFilterModal } from './components/KeywordFilterModal'
+import { SaveLabelModal } from './components/SaveLabelModal'
 import { AuthScreen } from './components/AuthScreen'
-import type { Category, KeywordFilter } from './types'
+import type { Category, KeywordFilter, SaveLabel } from './types'
+
+const PURGE_PREFS_KEY = 'newsfeed_purge_prefs'
+
+function loadPurgePrefs() {
+  try { return JSON.parse(localStorage.getItem(PURGE_PREFS_KEY) || '{}') } catch { return {} }
+}
 
 export default function App() {
   const { user, loading: authLoading, signOut } = useAuth()
@@ -17,16 +25,34 @@ export default function App() {
 
   const { categories, addCategory, updateCategory, deleteCategory } = useCategories(userId)
   const { filters: keywordFilters, addFilter, updateFilter, deleteFilter } = useKeywordFilters(userId)
-  const { articlesByCategory, allArticles, savedArticles, loading, errors, fetchCategory, markRead, toggleSaved } = useArticles(categories, userId)
+  const { labels, addLabel, updateLabel, deleteLabel } = useSaveLabels(userId)
+  const { articlesByCategory, allArticles, savedArticles, loading, errors, fetchCategory, markRead, saveArticle, unsaveArticle, purgeOldSaved } = useArticles(categories, userId)
 
   const [selectedId, setSelectedId] = useState<string | null>(categories[0]?.id ?? null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [catModal, setCatModal] = useState<{ open: boolean; editing: Category | null }>({ open: false, editing: null })
   const [kfModal, setKfModal] = useState<{ open: boolean; editing: KeywordFilter | null }>({ open: false, editing: null })
+  const [labelModal, setLabelModal] = useState<{ open: boolean; editing: SaveLabel | null }>({ open: false, editing: null })
+
+  // Purge settings — default 30 days, protect saved
+  const prefs = loadPurgePrefs()
+  const [purgeDays, setPurgeDays] = useState<number>(prefs.purgeDays ?? 30)
+  const [protectSaved, setProtectSaved] = useState<boolean>(prefs.protectSaved ?? true)
 
   useEffect(() => {
-    if (!selectedId || selectedId === 'saved') return
+    localStorage.setItem(PURGE_PREFS_KEY, JSON.stringify({ purgeDays, protectSaved }))
+  }, [purgeDays, protectSaved])
+
+  // When protectSaved is off and purgeDays is set, delete old saved articles from DB
+  useEffect(() => {
+    if (!protectSaved && purgeDays > 0 && userId) {
+      purgeOldSaved(purgeDays)
+    }
+  }, [purgeDays, protectSaved, userId])
+
+  useEffect(() => {
+    if (!selectedId || selectedId === 'saved' || selectedId.startsWith('saved:')) return
     if (selectedId.startsWith('kf_')) { categories.forEach(cat => fetchCategory(cat)); return }
     const cat = categories.find(c => c.id === selectedId)
     if (cat) fetchCategory(cat)
@@ -40,24 +66,28 @@ export default function App() {
     ? keywordFilters.find(f => `kf_${f.id}` === selectedId) ?? null
     : null
 
+  const isLabelView = !!selectedId?.startsWith('saved:')
+  const activeLabelId = isLabelView ? selectedId!.slice(6) : null
+
   const currentArticles = activeKeywordFilter
     ? allArticles
     : selectedId === null ? allArticles
     : selectedId === 'saved' ? savedArticles
+    : isLabelView ? savedArticles.filter(a => a.labelId === activeLabelId)
     : (articlesByCategory[selectedId] ?? [])
 
-  const currentLoading = !activeKeywordFilter && selectedId !== null && selectedId !== 'saved'
+  const currentLoading = !activeKeywordFilter && selectedId !== null && selectedId !== 'saved' && !isLabelView
     ? (loading[selectedId] ?? false) : false
 
-  const currentError = !activeKeywordFilter && selectedId !== null && selectedId !== 'saved'
+  const currentError = !activeKeywordFilter && selectedId !== null && selectedId !== 'saved' && !isLabelView
     ? errors[selectedId] : undefined
 
   const handleRefresh = useCallback(() => {
     if (activeKeywordFilter || selectedId === null) { categories.forEach(cat => fetchCategory(cat, true)); return }
-    if (selectedId === 'saved') return
+    if (selectedId === 'saved' || isLabelView) return
     const cat = categories.find(c => c.id === selectedId)
     if (cat) fetchCategory(cat, true)
-  }, [selectedId, activeKeywordFilter, categories, fetchCategory])
+  }, [selectedId, activeKeywordFilter, isLabelView, categories, fetchCategory])
 
   const handleSelect = (id: string | null) => {
     setSelectedId(id)
@@ -88,12 +118,31 @@ export default function App() {
     setKfModal({ open: false, editing: null })
   }
 
-  // Find article data when toggling saved (needed for Supabase storage)
-  const handleToggleSaved = useCallback((articleId: string) => {
+  const handleSaveLabel = (data: Omit<SaveLabel, 'id'>) => {
+    if (labelModal.editing) {
+      updateLabel(labelModal.editing.id, data)
+    } else {
+      addLabel(data)
+    }
+    setLabelModal({ open: false, editing: null })
+  }
+
+  // Save article with optional label — looks up article data from live state
+  const handleSaveArticle = useCallback((articleId: string, labelId?: string) => {
     const article = allArticles.find(a => a.id === articleId)
       ?? savedArticles.find(a => a.id === articleId)
-    toggleSaved(articleId, article)
-  }, [allArticles, savedArticles, toggleSaved])
+    if (article) saveArticle(articleId, article, labelId)
+  }, [allArticles, savedArticles, saveArticle])
+
+  const handleUnsaveArticle = useCallback((articleId: string) => {
+    unsaveArticle(articleId)
+  }, [unsaveArticle])
+
+  // Count per label for sidebar badges
+  const labelCounts = labels.reduce<Record<string, number>>((acc, l) => {
+    acc[l.id] = savedArticles.filter(a => a.labelId === l.id).length
+    return acc
+  }, {})
 
   if (authLoading) {
     return (
@@ -132,6 +181,14 @@ export default function App() {
             deleteFilter(id)
             if (selectedId === `kf_${id}`) setSelectedId(categories[0]?.id ?? null)
           }}
+          labels={labels}
+          labelCounts={labelCounts}
+          onAddLabel={() => setLabelModal({ open: true, editing: null })}
+          onEditLabel={l => setLabelModal({ open: true, editing: l })}
+          onDeleteLabel={id => {
+            deleteLabel(id)
+            if (selectedId === `saved:${id}`) setSelectedId('saved')
+          }}
           userEmail={user.email}
           onSignOut={signOut}
         />
@@ -155,9 +212,16 @@ export default function App() {
               error={currentError}
               onRefresh={handleRefresh}
               onMarkRead={markRead}
-              onToggleSaved={handleToggleSaved}
+              labels={labels}
+              onSaveArticle={handleSaveArticle}
+              onUnsaveArticle={handleUnsaveArticle}
+              onCreateLabel={() => setLabelModal({ open: true, editing: null })}
               searchQuery={searchQuery}
               activeKeywordFilter={activeKeywordFilter}
+              purgeDays={purgeDays}
+              protectSaved={protectSaved}
+              onChangePurgeDays={setPurgeDays}
+              onToggleProtectSaved={() => setProtectSaved(v => !v)}
             />
           </div>
         </main>
@@ -168,6 +232,9 @@ export default function App() {
       )}
       {kfModal.open && (
         <KeywordFilterModal filter={kfModal.editing} onSave={handleSaveKeywordFilter} onClose={() => setKfModal({ open: false, editing: null })} />
+      )}
+      {labelModal.open && (
+        <SaveLabelModal label={labelModal.editing} onSave={handleSaveLabel} onClose={() => setLabelModal({ open: false, editing: null })} />
       )}
     </div>
   )

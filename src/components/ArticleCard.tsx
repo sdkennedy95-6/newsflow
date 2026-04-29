@@ -1,13 +1,17 @@
 import { formatDistanceToNow } from 'date-fns'
-import { Bookmark, BookmarkCheck, ExternalLink } from 'lucide-react'
-import type { Article, Category } from '../types'
+import { ExternalLink } from 'lucide-react'
+import type { Article, Category, SaveLabel } from '../types'
 import { COLOR_MAP } from '../defaultCategories'
+import { SaveMenu } from './SaveMenu'
 
 interface Props {
   article: Article
   category: Category | undefined
   onMarkRead: (id: string) => void
-  onToggleSaved: (id: string) => void
+  labels: SaveLabel[]
+  onSaveArticle: (id: string, labelId?: string) => void
+  onUnsaveArticle: (id: string) => void
+  onCreateLabel: () => void
   showCategory?: boolean
   highlightKeywords?: string[]
 }
@@ -17,7 +21,7 @@ function matchedKeywords(text: string, keywords: string[]): string[] {
   return keywords.filter(kw => lower.includes(kw.toLowerCase()))
 }
 
-export function ArticleCard({ article, category, onMarkRead, onToggleSaved, showCategory, highlightKeywords }: Props) {
+export function ArticleCard({ article, category, onMarkRead, labels, onSaveArticle, onUnsaveArticle, onCreateLabel, showCategory, highlightKeywords }: Props) {
   const matched = highlightKeywords
     ? matchedKeywords(`${article.title} ${article.description}`, highlightKeywords)
     : []
@@ -83,17 +87,14 @@ export function ArticleCard({ article, category, onMarkRead, onToggleSaved, show
           <span className="text-xs text-slate-400">{formattedDate}</span>
 
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => onToggleSaved(article.id)}
-              className={`p-1.5 rounded-lg transition-colors ${
-                article.isSaved
-                  ? 'text-amber-500 hover:text-amber-600 bg-amber-50'
-                  : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50'
-              }`}
-              title={article.isSaved ? 'Remove from saved' : 'Save article'}
-            >
-              {article.isSaved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
-            </button>
+            <SaveMenu
+              isSaved={article.isSaved}
+              labelId={article.labelId}
+              labels={labels}
+              onSave={(labelId) => onSaveArticle(article.id, labelId)}
+              onUnsave={() => onUnsaveArticle(article.id)}
+              onCreateLabel={onCreateLabel}
+            />
 
             <button
               onClick={handleOpen}

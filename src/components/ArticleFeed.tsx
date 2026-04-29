@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw, AlertCircle, Newspaper, Search, ArrowUpDown, Layers, Bookmark } from 'lucide-react'
-import type { Article, Category, KeywordFilter } from '../types'
+import type { Article, Category, KeywordFilter, SaveLabel } from '../types'
 import { ArticleCard } from './ArticleCard'
 import { FILTER_COLOR_STYLES } from './KeywordFilterModal'
+import { PurgeControl } from './PurgeControl'
 
 type SortOrder = 'newest' | 'oldest'
 
@@ -24,9 +25,16 @@ interface Props {
   error: string | undefined
   onRefresh: () => void
   onMarkRead: (id: string) => void
-  onToggleSaved: (id: string) => void
+  labels: SaveLabel[]
+  onSaveArticle: (id: string, labelId?: string) => void
+  onUnsaveArticle: (id: string) => void
+  onCreateLabel: () => void
   searchQuery: string
   activeKeywordFilter?: KeywordFilter | null
+  purgeDays: number
+  protectSaved: boolean
+  onChangePurgeDays: (days: number) => void
+  onToggleProtectSaved: () => void
 }
 
 function ToggleButton({
@@ -73,9 +81,16 @@ export function ArticleFeed({
   error,
   onRefresh,
   onMarkRead,
-  onToggleSaved,
+  labels,
+  onSaveArticle,
+  onUnsaveArticle,
+  onCreateLabel,
   searchQuery,
   activeKeywordFilter,
+  purgeDays,
+  protectSaved,
+  onChangePurgeDays,
+  onToggleProtectSaved,
 }: Props) {
   const prefs = loadPrefs()
   const [sortOrder, setSortOrder] = useState<SortOrder>(prefs.sortOrder ?? 'newest')
@@ -85,18 +100,29 @@ export function ArticleFeed({
 
   useEffect(() => { setVisibleCount(20) }, [categoryId])
 
-  // Persist prefs
   useEffect(() => {
     savePrefs({ sortOrder, groupByFeed, savedFirst })
   }, [sortOrder, groupByFeed, savedFirst])
 
   const category = categories.find(c => c.id === categoryId)
   const isKeywordView = !!activeKeywordFilter
-  const showCategory = categoryId === null || categoryId === 'saved' || isKeywordView
-  const isSavedView = categoryId === 'saved'
+  const isLabelView = !!categoryId?.startsWith('saved:')
+  const activeLabelId = isLabelView ? categoryId!.slice(6) : null
+  const activeLabel = labels.find(l => l.id === activeLabelId)
+  const isSavedView = categoryId === 'saved' || isLabelView
+  const showCategory = categoryId === null || isSavedView || isKeywordView
+
+  // Purge cutoff: hide articles older than threshold (saved articles exempt if protectSaved)
+  const cutoffTime = purgeDays > 0 ? Date.now() - purgeDays * 24 * 60 * 60 * 1000 : 0
+  const passesPurge = (a: Article) => {
+    if (cutoffTime === 0) return true
+    if (protectSaved && a.isSaved) return true
+    try { return new Date(a.pubDate).getTime() >= cutoffTime } catch { return true }
+  }
 
   // 1. Filter
   const filtered = articles.filter(a => {
+    if (!passesPurge(a)) return false
     const text = `${a.title} ${a.description}`.toLowerCase()
     if (activeKeywordFilter) return activeKeywordFilter.keywords.some(kw => text.includes(kw.toLowerCase()))
     if (!searchQuery) return true
@@ -128,15 +154,19 @@ export function ArticleFeed({
 
   const totalCount = arranged.length
 
-  const title = isKeywordView
+  const title = isLabelView && activeLabel
+    ? activeLabel.name
+    : isKeywordView
     ? activeKeywordFilter!.name
     : categoryId === null ? 'All Articles'
-    : isSavedView ? 'Saved Articles'
+    : categoryId === 'saved' ? 'Saved Articles'
     : category ? `${category.icon} ${category.name}`
     : 'Articles'
 
   const filterStyles = isKeywordView
     ? FILTER_COLOR_STYLES[activeKeywordFilter!.color] ?? FILTER_COLOR_STYLES['violet']
+    : isLabelView && activeLabel
+    ? FILTER_COLOR_STYLES[activeLabel.color] ?? FILTER_COLOR_STYLES['violet']
     : null
 
   const renderCard = (article: Article) => {
@@ -147,7 +177,10 @@ export function ArticleFeed({
         article={article}
         category={cat}
         onMarkRead={onMarkRead}
-        onToggleSaved={onToggleSaved}
+        labels={labels}
+        onSaveArticle={onSaveArticle}
+        onUnsaveArticle={onUnsaveArticle}
+        onCreateLabel={onCreateLabel}
         showCategory={showCategory}
         highlightKeywords={isKeywordView ? activeKeywordFilter!.keywords : undefined}
       />
@@ -161,6 +194,9 @@ export function ArticleFeed({
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             {isKeywordView && <Search size={18} className="text-slate-400 flex-shrink-0" />}
+            {isLabelView && activeLabel && filterStyles && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${filterStyles.badge}`}>Label</span>
+            )}
             <h2 className="text-xl font-bold text-slate-900">{title}</h2>
           </div>
           {isKeywordView && activeKeywordFilter!.keywords.length > 0 && (
@@ -179,7 +215,7 @@ export function ArticleFeed({
           )}
         </div>
 
-        {categoryId !== 'saved' && !isKeywordView && (
+        {!isSavedView && !isKeywordView && (
           <button
             onClick={onRefresh}
             disabled={loading}
@@ -213,6 +249,12 @@ export function ArticleFeed({
             label="Saved first"
           />
         )}
+        <PurgeControl
+          purgeDays={purgeDays}
+          protectSaved={protectSaved}
+          onChangeDays={onChangePurgeDays}
+          onToggleProtect={onToggleProtectSaved}
+        />
       </div>
 
       {/* Error */}
@@ -246,6 +288,7 @@ export function ArticleFeed({
           <Newspaper size={48} className="text-slate-200 mb-4" />
           <p className="text-slate-500 font-medium">
             {isKeywordView ? 'No articles match these keywords yet — try refreshing'
+              : isLabelView ? 'No articles saved with this label'
               : searchQuery ? 'No articles match your search'
               : 'No articles yet'}
           </p>

@@ -36,6 +36,13 @@ export interface Article {
   feedName: string
   isRead: boolean
   isSaved: boolean
+  labelId?: string
+}
+
+export interface SaveLabel {
+  id: string
+  name: string
+  color: string
 }
 
 export interface RSSItem {

@@ -49,6 +49,7 @@ function articleToRow(a: Article, userId: string) {
     id: a.id, user_id: userId, title: a.title, description: a.description,
     link: a.link, pub_date: a.pubDate, thumbnail: a.thumbnail,
     author: a.author, category_id: a.categoryId, feed_name: a.feedName,
+    label_id: a.labelId ?? null,
   }
 }
 
@@ -58,6 +59,7 @@ function rowToArticle(r: any): Article {
     link: r.link, pubDate: r.pub_date || '', thumbnail: r.thumbnail || null,
     author: r.author || '', categoryId: r.category_id || '',
     feedName: r.feed_name || '', isRead: false, isSaved: true,
+    labelId: r.label_id || undefined,
   }
 }
 
@@ -69,6 +71,8 @@ export function useArticles(_categories: Category[], userId: string | null) {
   const cache = useRef<Record<string, CacheEntry>>({})
 
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
+  // maps article id → labelId for quick lookup when decorating RSS articles
+  const [savedLabelMap, setSavedLabelMap] = useState<Record<string, string | undefined>>({})
   const [readIds, setReadIds] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')) } catch { return new Set() }
   })
@@ -77,6 +81,7 @@ export function useArticles(_categories: Category[], userId: string | null) {
   useEffect(() => {
     if (!userId) {
       setSavedIds(new Set())
+      setSavedLabelMap({})
       setSupabaseSaved([])
       return
     }
@@ -84,6 +89,9 @@ export function useArticles(_categories: Category[], userId: string | null) {
       if (data && data.length > 0) {
         setSavedIds(new Set(data.map((r: any) => r.id)))
         setSupabaseSaved(data.map(rowToArticle))
+        const labelMap: Record<string, string | undefined> = {}
+        data.forEach((r: any) => { if (r.label_id) labelMap[r.id] = r.label_id })
+        setSavedLabelMap(labelMap)
       }
     })
   }, [userId])
@@ -116,7 +124,7 @@ export function useArticles(_categories: Category[], userId: string | null) {
       const deduped = articles
         .filter(a => { if (seen.has(a.link)) return false; seen.add(a.link); return true })
         .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
-        .map(a => ({ ...a, isSaved: savedIds.has(a.id) }))
+        .map(a => ({ ...a, isSaved: savedIds.has(a.id), labelId: savedLabelMap[a.id] }))
 
       cache.current[category.id] = { articles: deduped, fetchedAt: Date.now() }
       setArticlesByCategory(prev => ({ ...prev, [category.id]: deduped }))
@@ -129,7 +137,7 @@ export function useArticles(_categories: Category[], userId: string | null) {
     } finally {
       setLoading(prev => ({ ...prev, [category.id]: false }))
     }
-  }, [savedIds, readIds])
+  }, [savedIds, readIds, savedLabelMap])
 
   const markRead = useCallback((articleId: string) => {
     setReadIds(prev => new Set([...prev, articleId]))
@@ -142,39 +150,66 @@ export function useArticles(_categories: Category[], userId: string | null) {
     })
   }, [])
 
-  const toggleSaved = useCallback((articleId: string, articleData?: Article) => {
-    const willBeSaved = !savedIds.has(articleId)
-
-    setSavedIds(prev => {
-      const next = new Set(prev)
-      willBeSaved ? next.add(articleId) : next.delete(articleId)
-      return next
-    })
-
+  const saveArticle = useCallback((articleId: string, articleData: Article, labelId?: string) => {
+    setSavedIds(prev => new Set([...prev, articleId]))
+    setSavedLabelMap(prev => ({ ...prev, [articleId]: labelId }))
     setArticlesByCategory(prev => {
       const updated = { ...prev }
       for (const catId in updated) {
-        updated[catId] = updated[catId].map(a => a.id === articleId ? { ...a, isSaved: willBeSaved } : a)
+        updated[catId] = updated[catId].map(a =>
+          a.id === articleId ? { ...a, isSaved: true, labelId } : a
+        )
       }
       return updated
     })
-
-    // Sync to Supabase
     if (userId) {
-      if (willBeSaved && articleData) {
-        setSupabaseSaved(prev => [...prev.filter(a => a.id !== articleId), { ...articleData, isSaved: true }])
-        supabase.from('saved_articles').upsert(articleToRow({ ...articleData, isSaved: true }, userId)).then()
-      } else {
-        setSupabaseSaved(prev => prev.filter(a => a.id !== articleId))
-        supabase.from('saved_articles').delete().eq('id', articleId).eq('user_id', userId).then()
-      }
+      const saved = { ...articleData, isSaved: true, labelId }
+      setSupabaseSaved(prev => [...prev.filter(a => a.id !== articleId), saved])
+      supabase.from('saved_articles').upsert(articleToRow(saved, userId)).then()
     }
-  }, [savedIds, userId])
+  }, [userId])
+
+  const unsaveArticle = useCallback((articleId: string) => {
+    setSavedIds(prev => { const n = new Set(prev); n.delete(articleId); return n })
+    setSavedLabelMap(prev => { const n = { ...prev }; delete n[articleId]; return n })
+    setArticlesByCategory(prev => {
+      const updated = { ...prev }
+      for (const catId in updated) {
+        updated[catId] = updated[catId].map(a =>
+          a.id === articleId ? { ...a, isSaved: false, labelId: undefined } : a
+        )
+      }
+      return updated
+    })
+    if (userId) {
+      setSupabaseSaved(prev => prev.filter(a => a.id !== articleId))
+      supabase.from('saved_articles').delete().eq('id', articleId).eq('user_id', userId).then()
+    }
+  }, [userId])
+
+  // Deletes old saved articles from Supabase DB (used when protectSaved is off)
+  const purgeOldSaved = useCallback((days: number) => {
+    if (!userId || days <= 0) return
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+    const toDelete = supabaseSaved.filter(a => {
+      try { return new Date(a.pubDate).getTime() < cutoff } catch { return false }
+    })
+    if (toDelete.length === 0) return
+    const deleteIds = toDelete.map(a => a.id)
+    supabase.from('saved_articles').delete().eq('user_id', userId).in('id', deleteIds).then()
+    setSupabaseSaved(prev => prev.filter(a => !deleteIds.includes(a.id)))
+    setSavedIds(prev => { const n = new Set(prev); deleteIds.forEach(id => n.delete(id)); return n })
+    setSavedLabelMap(prev => {
+      const n = { ...prev }
+      deleteIds.forEach(id => delete n[id])
+      return n
+    })
+  }, [userId, supabaseSaved])
 
   const allArticles = Object.values(articlesByCategory).flat()
-    .map(a => ({ ...a, isSaved: savedIds.has(a.id) }))
+    .map(a => ({ ...a, isSaved: savedIds.has(a.id), labelId: savedLabelMap[a.id] }))
 
   const savedArticles = userId ? supabaseSaved : allArticles.filter(a => a.isSaved)
 
-  return { articlesByCategory, allArticles, savedArticles, loading, errors, fetchCategory, markRead, toggleSaved }
+  return { articlesByCategory, allArticles, savedArticles, loading, errors, fetchCategory, markRead, saveArticle, unsaveArticle, purgeOldSaved }
 }

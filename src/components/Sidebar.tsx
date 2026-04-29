@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Plus, Bookmark, Layers, ChevronRight, Pencil, Trash2, Search, LogOut } from 'lucide-react'
-import type { Category, KeywordFilter } from '../types'
+import { Plus, Bookmark, Layers, ChevronRight, Pencil, Trash2, Search, LogOut, Tag } from 'lucide-react'
+import type { Category, KeywordFilter, SaveLabel } from '../types'
 import { COLOR_MAP } from '../defaultCategories'
 import { FILTER_COLOR_STYLES } from './KeywordFilterModal'
 
@@ -16,6 +16,11 @@ interface Props {
   onAddKeywordFilter: () => void
   onEditKeywordFilter: (f: KeywordFilter) => void
   onDeleteKeywordFilter: (id: string) => void
+  labels: SaveLabel[]
+  labelCounts: Record<string, number>
+  onAddLabel: () => void
+  onEditLabel: (label: SaveLabel) => void
+  onDeleteLabel: (id: string) => void
   userEmail?: string
   onSignOut: () => void
 }
@@ -32,6 +37,11 @@ export function Sidebar({
   onAddKeywordFilter,
   onEditKeywordFilter,
   onDeleteKeywordFilter,
+  labels,
+  labelCounts,
+  onAddLabel,
+  onEditLabel,
+  onDeleteLabel,
   userEmail,
   onSignOut,
 }: Props) {
@@ -110,6 +120,70 @@ export function Sidebar({
       <nav className="flex-1 overflow-y-auto p-3 space-y-1 min-h-0">
         <NavItem id={null} icon={<Layers size={16} />} label="All Articles" />
         <NavItem id="saved" icon={<Bookmark size={16} />} label="Saved" badge={savedCount} />
+
+        {/* Label sub-items under Saved */}
+        {labels.length > 0 && (
+          <div className="pl-4 space-y-0.5">
+            {labels.map(label => {
+              const styles = FILTER_COLOR_STYLES[label.color] ?? FILTER_COLOR_STYLES['violet']
+              const labelNavId = `saved:${label.id}`
+              const isActive = selectedId === labelNavId
+              const isHovered = hoveredId === labelNavId
+              const count = labelCounts[label.id] ?? 0
+
+              return (
+                <div
+                  key={label.id}
+                  className="relative"
+                  onMouseEnter={() => setHoveredId(labelNavId)}
+                  onMouseLeave={() => setHoveredId(null)}
+                >
+                  <button
+                    onClick={() => onSelect(labelNavId)}
+                    className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                    }`}
+                  >
+                    <Tag size={11} className={`flex-shrink-0 ${styles.dot.replace('bg-', 'text-')}`} />
+                    <span className="flex-1 text-left truncate">{label.name}</span>
+                    {count > 0 && (
+                      <span className={`text-xs px-1 py-0.5 rounded-full ${isActive ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+
+                  {isHovered && (
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-md shadow-sm border border-slate-100 px-1 py-0.5 z-10">
+                      <button
+                        onClick={e => { e.stopPropagation(); onEditLabel(label) }}
+                        className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleDelete(label.id, onDeleteLabel) }}
+                        className={`p-1 rounded transition-colors ${
+                          confirmDelete === label.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'
+                        }`}
+                        title={confirmDelete === label.id ? 'Click again to confirm' : 'Delete'}
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            <button
+              onClick={onAddLabel}
+              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              <Plus size={11} /> New label
+            </button>
+          </div>
+        )}
 
         {/* Categories */}
         <div className="pt-3 pb-1">

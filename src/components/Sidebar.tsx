@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Bookmark, Layers, ChevronRight, Pencil, Trash2, Search } from 'lucide-react'
+import { Plus, Bookmark, Layers, ChevronRight, Pencil, Trash2, Search, LogOut } from 'lucide-react'
 import type { Category, KeywordFilter } from '../types'
 import { COLOR_MAP } from '../defaultCategories'
 import { FILTER_COLOR_STYLES } from './KeywordFilterModal'
@@ -16,6 +16,8 @@ interface Props {
   onAddKeywordFilter: () => void
   onEditKeywordFilter: (f: KeywordFilter) => void
   onDeleteKeywordFilter: (id: string) => void
+  userEmail?: string
+  onSignOut: () => void
 }
 
 export function Sidebar({
@@ -30,6 +32,8 @@ export function Sidebar({
   onAddKeywordFilter,
   onEditKeywordFilter,
   onDeleteKeywordFilter,
+  userEmail,
+  onSignOut,
 }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -227,18 +231,18 @@ export function Sidebar({
 
       {/* Footer */}
       <div className="p-3 border-t border-slate-100 flex-shrink-0 space-y-1">
-        <button
-          onClick={onAddCategory}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-        >
+        <button onClick={onAddCategory} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
           <Plus size={14} /> New Category
         </button>
-        <button
-          onClick={onAddKeywordFilter}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-        >
+        <button onClick={onAddKeywordFilter} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
           <Search size={14} /> New Saved Search
         </button>
+        <div className="border-t border-slate-100 pt-2 mt-1">
+          {userEmail && <p className="text-xs text-slate-400 px-3 pb-1 truncate">{userEmail}</p>}
+          <button onClick={onSignOut} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors">
+            <LogOut size={14} /> Sign out
+          </button>
+        </div>
       </div>
     </aside>
   )

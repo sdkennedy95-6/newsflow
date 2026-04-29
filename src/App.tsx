@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from './hooks/useAuth'
 import { useCategories } from './hooks/useCategories'
 import { useArticles } from './hooks/useArticles'
 import { useKeywordFilters } from './hooks/useKeywordFilters'
@@ -7,12 +8,16 @@ import { Header } from './components/Header'
 import { ArticleFeed } from './components/ArticleFeed'
 import { CategoryModal } from './components/CategoryModal'
 import { KeywordFilterModal } from './components/KeywordFilterModal'
+import { AuthScreen } from './components/AuthScreen'
 import type { Category, KeywordFilter } from './types'
 
 export default function App() {
-  const { categories, addCategory, updateCategory, deleteCategory } = useCategories()
-  const { articlesByCategory, allArticles, savedArticles, loading, errors, fetchCategory, markRead, toggleSaved } = useArticles(categories)
-  const { filters: keywordFilters, addFilter, updateFilter, deleteFilter } = useKeywordFilters()
+  const { user, loading: authLoading, signOut } = useAuth()
+  const userId = user?.id ?? null
+
+  const { categories, addCategory, updateCategory, deleteCategory } = useCategories(userId)
+  const { filters: keywordFilters, addFilter, updateFilter, deleteFilter } = useKeywordFilters(userId)
+  const { articlesByCategory, allArticles, savedArticles, loading, errors, fetchCategory, markRead, toggleSaved } = useArticles(categories, userId)
 
   const [selectedId, setSelectedId] = useState<string | null>(categories[0]?.id ?? null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -20,49 +25,35 @@ export default function App() {
   const [catModal, setCatModal] = useState<{ open: boolean; editing: Category | null }>({ open: false, editing: null })
   const [kfModal, setKfModal] = useState<{ open: boolean; editing: KeywordFilter | null }>({ open: false, editing: null })
 
-  // Fetch articles when selection changes
   useEffect(() => {
     if (!selectedId || selectedId === 'saved') return
-    if (selectedId.startsWith('kf_')) {
-      // keyword filter — ensure all categories are loaded
-      categories.forEach(cat => fetchCategory(cat))
-      return
-    }
+    if (selectedId.startsWith('kf_')) { categories.forEach(cat => fetchCategory(cat)); return }
     const cat = categories.find(c => c.id === selectedId)
     if (cat) fetchCategory(cat)
   }, [selectedId, categories])
 
-  // Pre-fetch first category on mount
   useEffect(() => {
     if (categories.length > 0) fetchCategory(categories[0])
   }, [])
 
-  // Resolve what's active
   const activeKeywordFilter = selectedId?.startsWith('kf_')
     ? keywordFilters.find(f => `kf_${f.id}` === selectedId) ?? null
     : null
 
   const currentArticles = activeKeywordFilter
     ? allArticles
-    : selectedId === null
-    ? allArticles
-    : selectedId === 'saved'
-    ? savedArticles
+    : selectedId === null ? allArticles
+    : selectedId === 'saved' ? savedArticles
     : (articlesByCategory[selectedId] ?? [])
 
   const currentLoading = !activeKeywordFilter && selectedId !== null && selectedId !== 'saved'
-    ? (loading[selectedId] ?? false)
-    : false
+    ? (loading[selectedId] ?? false) : false
 
   const currentError = !activeKeywordFilter && selectedId !== null && selectedId !== 'saved'
-    ? errors[selectedId]
-    : undefined
+    ? errors[selectedId] : undefined
 
   const handleRefresh = useCallback(() => {
-    if (activeKeywordFilter || selectedId === null) {
-      categories.forEach(cat => fetchCategory(cat, true))
-      return
-    }
+    if (activeKeywordFilter || selectedId === null) { categories.forEach(cat => fetchCategory(cat, true)); return }
     if (selectedId === 'saved') return
     const cat = categories.find(c => c.id === selectedId)
     if (cat) fetchCategory(cat, true)
@@ -97,14 +88,29 @@ export default function App() {
     setKfModal({ open: false, editing: null })
   }
 
+  // Find article data when toggling saved (needed for Supabase storage)
+  const handleToggleSaved = useCallback((articleId: string) => {
+    const article = allArticles.find(a => a.id === articleId)
+      ?? savedArticles.find(a => a.id === articleId)
+    toggleSaved(articleId, article)
+  }, [allArticles, savedArticles, toggleSaved])
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!user) return <AuthScreen />
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-20 bg-black/30 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <div className={`fixed lg:static inset-y-0 left-0 z-30 lg:z-auto transition-transform duration-200 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
@@ -126,10 +132,11 @@ export default function App() {
             deleteFilter(id)
             if (selectedId === `kf_${id}`) setSelectedId(categories[0]?.id ?? null)
           }}
+          userEmail={user.email}
+          onSignOut={signOut}
         />
       </div>
 
-      {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header
           searchQuery={searchQuery}
@@ -148,7 +155,7 @@ export default function App() {
               error={currentError}
               onRefresh={handleRefresh}
               onMarkRead={markRead}
-              onToggleSaved={toggleSaved}
+              onToggleSaved={handleToggleSaved}
               searchQuery={searchQuery}
               activeKeywordFilter={activeKeywordFilter}
             />
@@ -157,19 +164,10 @@ export default function App() {
       </div>
 
       {catModal.open && (
-        <CategoryModal
-          category={catModal.editing}
-          onSave={handleSaveCategory}
-          onClose={() => setCatModal({ open: false, editing: null })}
-        />
+        <CategoryModal category={catModal.editing} onSave={handleSaveCategory} onClose={() => setCatModal({ open: false, editing: null })} />
       )}
-
       {kfModal.open && (
-        <KeywordFilterModal
-          filter={kfModal.editing}
-          onSave={handleSaveKeywordFilter}
-          onClose={() => setKfModal({ open: false, editing: null })}
-        />
+        <KeywordFilterModal filter={kfModal.editing} onSave={handleSaveKeywordFilter} onClose={() => setKfModal({ open: false, editing: null })} />
       )}
     </div>
   )

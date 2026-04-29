@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/api/feedly/:path*", "destination": "https://cloud.feedly.com/v3/:path*" }
+  ]
+}

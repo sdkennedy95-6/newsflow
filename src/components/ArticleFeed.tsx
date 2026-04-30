@@ -99,8 +99,10 @@ export function ArticleFeed({
   const [groupByFeed, setGroupByFeed] = useState<boolean>(prefs.groupByFeed ?? false)
   const [savedFirst, setSavedFirst] = useState<boolean>(prefs.savedFirst ?? false)
   const [visibleCount, setVisibleCount] = useState(20)
+  const [selectedFeed, setSelectedFeed] = useState<string | null>(null)
 
-  useEffect(() => { setVisibleCount(20) }, [categoryId])
+  useEffect(() => { setVisibleCount(20); setSelectedFeed(null) }, [categoryId])
+  useEffect(() => { if (!groupByFeed) setSelectedFeed(null) }, [groupByFeed])
 
   useEffect(() => {
     savePrefs({ sortOrder, groupByFeed, savedFirst })
@@ -144,7 +146,7 @@ export function ArticleFeed({
 
   // 4. Group by feed
   type FeedGroup = { feedName: string; articles: Article[] }
-  const groups: FeedGroup[] = groupByFeed
+  const allGroups: FeedGroup[] = groupByFeed
     ? Object.entries(
         arranged.reduce<Record<string, Article[]>>((acc, a) => {
           const key = a.feedName || 'Unknown'
@@ -152,9 +154,15 @@ export function ArticleFeed({
           return acc
         }, {})
       ).map(([feedName, articles]) => ({ feedName, articles }))
+    : []
+
+  const groups: FeedGroup[] = groupByFeed
+    ? (selectedFeed ? allGroups.filter(g => g.feedName === selectedFeed) : allGroups)
     : [{ feedName: '', articles: arranged.slice(0, visibleCount) }]
 
-  const totalCount = arranged.length
+  const totalCount = selectedFeed
+    ? (allGroups.find(g => g.feedName === selectedFeed)?.articles.length ?? 0)
+    : arranged.length
 
   const title = isLabelView && activeLabel
     ? activeLabel.name
@@ -260,6 +268,41 @@ export function ArticleFeed({
         />
       </div>
 
+      {/* Feed picker — shown when groupByFeed is on and there are multiple feeds */}
+      {groupByFeed && allGroups.length > 1 && (
+        <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1 scrollbar-none">
+          <button
+            onClick={() => setSelectedFeed(null)}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              selectedFeed === null
+                ? 'bg-slate-800 text-white'
+                : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:text-slate-800'
+            }`}
+          >
+            All
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${selectedFeed === null ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+              {arranged.length}
+            </span>
+          </button>
+          {allGroups.map(group => (
+            <button
+              key={group.feedName}
+              onClick={() => setSelectedFeed(group.feedName)}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                selectedFeed === group.feedName
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:text-slate-800'
+              }`}
+            >
+              <span className="truncate max-w-[140px]">{group.feedName}</span>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${selectedFeed === group.feedName ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                {group.articles.length}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm mb-4 border border-red-100">
@@ -324,10 +367,12 @@ export function ArticleFeed({
       )}
 
       {totalCount > 0 && groupByFeed && (
-        <div className="space-y-2">
+        <div className="space-y-6">
           {groups.map(group => (
             <div key={group.feedName}>
-              <GroupHeader feedName={group.feedName} count={group.articles.length} />
+              {!selectedFeed && (
+                <GroupHeader feedName={group.feedName} count={group.articles.length} />
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {group.articles.map(renderCard)}
               </div>

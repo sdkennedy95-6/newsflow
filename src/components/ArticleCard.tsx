@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Play, Mic } from 'lucide-react'
 import type { Article, Category, SaveLabel } from '../types'
 import { COLOR_MAP } from '../defaultCategories'
 import { SaveMenu } from './SaveMenu'
@@ -12,6 +12,7 @@ interface Props {
   onSaveArticle: (id: string, labelId?: string) => void
   onUnsaveArticle: (id: string) => void
   onCreateLabel: () => void
+  onPlayEpisode: (article: Article) => void
   showCategory?: boolean
   highlightKeywords?: string[]
 }
@@ -21,7 +22,7 @@ function matchedKeywords(text: string, keywords: string[]): string[] {
   return keywords.filter(kw => lower.includes(kw.toLowerCase()))
 }
 
-export function ArticleCard({ article, category, onMarkRead, labels, onSaveArticle, onUnsaveArticle, onCreateLabel, showCategory, highlightKeywords }: Props) {
+export function ArticleCard({ article, category, onMarkRead, labels, onSaveArticle, onUnsaveArticle, onCreateLabel, onPlayEpisode, showCategory, highlightKeywords }: Props) {
   const matched = highlightKeywords
     ? matchedKeywords(`${article.title} ${article.description}`, highlightKeywords)
     : []
@@ -59,7 +60,12 @@ export function ArticleCard({ article, category, onMarkRead, labels, onSaveArtic
 
       <div className="p-4 flex flex-col flex-1">
         <div className="flex items-center gap-2 mb-2 flex-wrap">
-          {showCategory && category && (
+          {article.contentType === 'podcast' && (
+            <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 flex-shrink-0">
+              <Mic size={10} /> Podcast
+            </span>
+          )}
+          {showCategory && category && article.contentType !== 'podcast' && (
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors.badge}`}>
               {category.icon} {category.name}
             </span>
@@ -96,12 +102,21 @@ export function ArticleCard({ article, category, onMarkRead, labels, onSaveArtic
               onCreateLabel={onCreateLabel}
             />
 
-            <button
-              onClick={handleOpen}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-            >
-              Read <ExternalLink size={11} />
-            </button>
+            {article.contentType === 'podcast' ? (
+              <button
+                onClick={() => onPlayEpisode(article)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-50 transition-colors"
+              >
+                <Play size={11} className="fill-current" /> Play
+              </button>
+            ) : (
+              <button
+                onClick={handleOpen}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                Read <ExternalLink size={11} />
+              </button>
+            )}
           </div>
         </div>
       </div>

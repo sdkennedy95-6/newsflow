@@ -19,8 +19,14 @@ function extractImage(item: RSSItem): string | null {
   return match ? match[1] : null
 }
 
+function extractAudio(item: RSSItem): string | null {
+  if (item.enclosure?.link && item.enclosure.type?.startsWith('audio')) return item.enclosure.link
+  return null
+}
+
 function itemToArticle(item: RSSItem, categoryId: string, feedName: string, savedIds: Set<string>, readIds: Set<string>): Article {
   const id = item.guid || item.link || `${categoryId}_${item.title}`
+  const audioUrl = extractAudio(item) ?? undefined
   return {
     id,
     title: stripHtml(item.title || ''),
@@ -33,6 +39,9 @@ function itemToArticle(item: RSSItem, categoryId: string, feedName: string, save
     feedName,
     isRead: readIds.has(id),
     isSaved: savedIds.has(id),
+    contentType: audioUrl ? 'podcast' : 'article',
+    audioUrl,
+    duration: item.itunes_duration || undefined,
   }
 }
 

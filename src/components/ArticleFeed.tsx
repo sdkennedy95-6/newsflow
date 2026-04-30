@@ -29,6 +29,7 @@ interface Props {
   onSaveArticle: (id: string, labelId?: string) => void
   onUnsaveArticle: (id: string) => void
   onCreateLabel: () => void
+  onPlayEpisode: (article: Article) => void
   searchQuery: string
   activeKeywordFilter?: KeywordFilter | null
   purgeDays: number
@@ -85,6 +86,7 @@ export function ArticleFeed({
   onSaveArticle,
   onUnsaveArticle,
   onCreateLabel,
+  onPlayEpisode,
   searchQuery,
   activeKeywordFilter,
   purgeDays,
@@ -181,6 +183,7 @@ export function ArticleFeed({
         onSaveArticle={onSaveArticle}
         onUnsaveArticle={onUnsaveArticle}
         onCreateLabel={onCreateLabel}
+        onPlayEpisode={onPlayEpisode}
         showCategory={showCategory}
         highlightKeywords={isKeywordView ? activeKeywordFilter!.keywords : undefined}
       />

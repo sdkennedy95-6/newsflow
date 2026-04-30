@@ -4,12 +4,14 @@ import { useCategories } from './hooks/useCategories'
 import { useArticles } from './hooks/useArticles'
 import { useKeywordFilters } from './hooks/useKeywordFilters'
 import { useSaveLabels } from './hooks/useSaveLabels'
+import { usePodcastPlayer } from './hooks/usePodcastPlayer'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { ArticleFeed } from './components/ArticleFeed'
 import { CategoryModal } from './components/CategoryModal'
 import { KeywordFilterModal } from './components/KeywordFilterModal'
 import { SaveLabelModal } from './components/SaveLabelModal'
+import { PodcastPlayer } from './components/PodcastPlayer'
 import { AuthScreen } from './components/AuthScreen'
 import type { Category, KeywordFilter, SaveLabel } from './types'
 
@@ -27,6 +29,7 @@ export default function App() {
   const { filters: keywordFilters, addFilter, updateFilter, deleteFilter } = useKeywordFilters(userId)
   const { labels, addLabel, updateLabel, deleteLabel } = useSaveLabels(userId)
   const { articlesByCategory, allArticles, savedArticles, loading, errors, fetchCategory, markRead, saveArticle, unsaveArticle, purgeOldSaved } = useArticles(categories, userId)
+  const podcastPlayer = usePodcastPlayer()
 
   const [selectedId, setSelectedId] = useState<string | null>(categories[0]?.id ?? null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -216,6 +219,7 @@ export default function App() {
               onSaveArticle={handleSaveArticle}
               onUnsaveArticle={handleUnsaveArticle}
               onCreateLabel={() => setLabelModal({ open: true, editing: null })}
+              onPlayEpisode={podcastPlayer.play}
               searchQuery={searchQuery}
               activeKeywordFilter={activeKeywordFilter}
               purgeDays={purgeDays}
@@ -225,6 +229,8 @@ export default function App() {
             />
           </div>
         </main>
+
+        <PodcastPlayer player={podcastPlayer} />
       </div>
 
       {catModal.open && (

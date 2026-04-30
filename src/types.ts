@@ -37,6 +37,9 @@ export interface Article {
   isRead: boolean
   isSaved: boolean
   labelId?: string
+  contentType?: 'article' | 'podcast'
+  audioUrl?: string
+  duration?: string
 }
 
 export interface SaveLabel {
@@ -54,7 +57,8 @@ export interface RSSItem {
   thumbnail: string
   description: string
   content: string
-  enclosure: { link?: string; type?: string }
+  enclosure: { link?: string; type?: string; length?: string }
+  itunes_duration?: string
 }
 
 export interface RSSResponse {

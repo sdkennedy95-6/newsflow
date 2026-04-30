@@ -3,6 +3,7 @@ import { Plus, Bookmark, Layers, ChevronRight, Pencil, Trash2, Search, LogOut, T
 import type { Category, KeywordFilter, SaveLabel } from '../types'
 import { COLOR_MAP } from '../defaultCategories'
 import { FILTER_COLOR_STYLES } from './KeywordFilterModal'
+import { ReadingGoalWidget } from './ReadingGoalWidget'
 
 interface Props {
   categories: Category[]
@@ -21,6 +22,12 @@ interface Props {
   onAddLabel: () => void
   onEditLabel: (label: SaveLabel) => void
   onDeleteLabel: (id: string) => void
+  todayCount: number
+  goal: number
+  streak: number
+  goalReached: boolean
+  justReached: boolean
+  onSetGoal: (n: number) => void
   userEmail?: string
   onSignOut: () => void
 }
@@ -42,6 +49,12 @@ export function Sidebar({
   onAddLabel,
   onEditLabel,
   onDeleteLabel,
+  todayCount,
+  goal,
+  streak,
+  goalReached,
+  justReached,
+  onSetGoal,
   userEmail,
   onSignOut,
 }: Props) {
@@ -115,6 +128,16 @@ export function Sidebar({
           <span className="font-bold text-slate-900 text-base">NewsFlow</span>
         </div>
       </div>
+
+      {/* Reading goal */}
+      <ReadingGoalWidget
+        todayCount={todayCount}
+        goal={goal}
+        streak={streak}
+        goalReached={goalReached}
+        justReached={justReached}
+        onSetGoal={onSetGoal}
+      />
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-1 min-h-0">

@@ -5,6 +5,7 @@ import { useArticles } from './hooks/useArticles'
 import { useKeywordFilters } from './hooks/useKeywordFilters'
 import { useSaveLabels } from './hooks/useSaveLabels'
 import { usePodcastPlayer } from './hooks/usePodcastPlayer'
+import { useReadingGoals } from './hooks/useReadingGoals'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { ArticleFeed } from './components/ArticleFeed'
@@ -30,6 +31,7 @@ export default function App() {
   const { labels, addLabel, updateLabel, deleteLabel } = useSaveLabels(userId)
   const { articlesByCategory, allArticles, savedArticles, loading, errors, fetchCategory, markRead, saveArticle, unsaveArticle, purgeOldSaved } = useArticles(categories, userId)
   const podcastPlayer = usePodcastPlayer()
+  const { todayCount, goal, streak, goalReached, justReached, recordRead, setGoal } = useReadingGoals()
 
   const [selectedId, setSelectedId] = useState<string | null>(categories[0]?.id ?? null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -130,6 +132,11 @@ export default function App() {
     setLabelModal({ open: false, editing: null })
   }
 
+  const handleMarkRead = useCallback((articleId: string) => {
+    markRead(articleId)
+    recordRead(articleId)
+  }, [markRead, recordRead])
+
   // Save article with optional label — looks up article data from live state
   const handleSaveArticle = useCallback((articleId: string, labelId?: string) => {
     const article = allArticles.find(a => a.id === articleId)
@@ -192,6 +199,12 @@ export default function App() {
             deleteLabel(id)
             if (selectedId === `saved:${id}`) setSelectedId('saved')
           }}
+          todayCount={todayCount}
+          goal={goal}
+          streak={streak}
+          goalReached={goalReached}
+          justReached={justReached}
+          onSetGoal={setGoal}
           userEmail={user.email}
           onSignOut={signOut}
         />
@@ -214,7 +227,7 @@ export default function App() {
               loading={currentLoading}
               error={currentError}
               onRefresh={handleRefresh}
-              onMarkRead={markRead}
+              onMarkRead={handleMarkRead}
               labels={labels}
               onSaveArticle={handleSaveArticle}
               onUnsaveArticle={handleUnsaveArticle}

@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Plus, Bookmark, Layers, Pencil, Trash2, Search, LogOut, Tag, Check } from 'lucide-react'
+import { Plus, Bookmark, Layers, Pencil, Trash2, Search, LogOut, Tag, Check, ChevronUp, ChevronDown } from 'lucide-react'
 import type { Category, KeywordFilter, SaveLabel } from '../types'
 import { COLOR_MAP } from '../defaultCategories'
 import { FILTER_COLOR_STYLES } from './KeywordFilterModal'
 import { ReadingGoalWidget } from './ReadingGoalWidget'
+import { PurgeControl } from './PurgeControl'
 
 interface Props {
   categories: Category[]
@@ -13,6 +14,7 @@ interface Props {
   onAddCategory: () => void
   onEditCategory: (category: Category) => void
   onDeleteCategory: (id: string) => void
+  onReorderCategory: (id: string, direction: 'up' | 'down') => void
   keywordFilters: KeywordFilter[]
   onAddKeywordFilter: () => void
   onEditKeywordFilter: (f: KeywordFilter) => void
@@ -28,16 +30,21 @@ interface Props {
   goalReached: boolean
   justReached: boolean
   onSetGoal: (n: number) => void
+  purgeDays: number
+  protectSaved: boolean
+  onChangePurgeDays: (days: number) => void
+  onToggleProtectSaved: () => void
   userEmail?: string
   onSignOut: () => void
 }
 
 export function Sidebar({
   categories, selectedId, onSelect, savedCount,
-  onAddCategory, onEditCategory, onDeleteCategory,
+  onAddCategory, onEditCategory, onDeleteCategory, onReorderCategory,
   keywordFilters, onAddKeywordFilter, onEditKeywordFilter, onDeleteKeywordFilter,
   labels, labelCounts, onAddLabel, onEditLabel, onDeleteLabel,
   todayCount, goal, streak, goalReached, justReached, onSetGoal,
+  purgeDays, protectSaved, onChangePurgeDays, onToggleProtectSaved,
   userEmail, onSignOut,
 }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -53,7 +60,6 @@ export function Sidebar({
     }
   }
 
-  /* M3 Navigation Drawer item — full-width pill indicator */
   const NavItem = ({ id, icon, label, badge }: {
     id: string | null; icon: React.ReactNode; label: string; badge?: number
   }) => {
@@ -62,9 +68,7 @@ export function Sidebar({
       <button
         onClick={() => onSelect(id)}
         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-full text-sm font-medium transition-colors ${
-          isActive
-            ? 'bg-blue-100 text-blue-900'
-            : 'text-slate-700 hover:bg-slate-100'
+          isActive ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-100'
         }`}
       >
         <span className={isActive ? 'text-blue-800' : 'text-slate-500'}>{icon}</span>
@@ -95,10 +99,9 @@ export function Sidebar({
 
   return (
     <aside className="w-64 flex-shrink-0 bg-white shadow-md flex flex-col h-full">
-      {/* M3 Drawer headline */}
+      {/* Logo */}
       <div className="px-5 py-5 flex-shrink-0">
         <img src="/logo.svg" alt="The Loop" className="h-10 w-10 rounded-xl" />
-
       </div>
 
       {/* Reading goal */}
@@ -158,7 +161,7 @@ export function Sidebar({
         {/* Categories */}
         <div className="pt-2">
           <SectionLabel label="Categories" onAdd={onAddCategory} title="Add category" />
-          {categories.map(cat => {
+          {categories.map((cat, idx) => {
             const colors = COLOR_MAP[cat.color]
             const isActive = selectedId === cat.id
             const isHovered = hoveredId === cat.id
@@ -181,8 +184,20 @@ export function Sidebar({
                 </button>
                 {isHovered && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-full shadow border border-slate-100 px-1 py-0.5 z-10">
-                    <button onClick={e => { e.stopPropagation(); onEditCategory(cat) }} className="p-1 rounded-full text-slate-400 hover:text-blue-600 transition-colors" title="Edit"><Pencil size={12} /></button>
-                    <button onClick={e => { e.stopPropagation(); handleDelete(cat.id, onDeleteCategory) }} className={`p-1 rounded-full transition-colors ${confirmDelete === cat.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'}`} title={confirmDelete === cat.id ? 'Confirm' : 'Delete'}><Trash2 size={12} /></button>
+                    <button
+                      onClick={e => { e.stopPropagation(); onReorderCategory(cat.id, 'up') }}
+                      disabled={idx === 0}
+                      className="p-1 rounded-full text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30"
+                      title="Move up"
+                    ><ChevronUp size={11} /></button>
+                    <button
+                      onClick={e => { e.stopPropagation(); onReorderCategory(cat.id, 'down') }}
+                      disabled={idx === categories.length - 1}
+                      className="p-1 rounded-full text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-30"
+                      title="Move down"
+                    ><ChevronDown size={11} /></button>
+                    <button onClick={e => { e.stopPropagation(); onEditCategory(cat) }} className="p-1 rounded-full text-slate-400 hover:text-blue-600 transition-colors" title="Edit"><Pencil size={11} /></button>
+                    <button onClick={e => { e.stopPropagation(); handleDelete(cat.id, onDeleteCategory) }} className={`p-1 rounded-full transition-colors ${confirmDelete === cat.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'}`} title={confirmDelete === cat.id ? 'Confirm' : 'Delete'}><Trash2 size={11} /></button>
                   </div>
                 )}
               </div>
@@ -232,8 +247,17 @@ export function Sidebar({
         </div>
       </nav>
 
-      {/* M3 Drawer footer */}
-      <div className="px-3 py-3 border-t border-slate-100 flex-shrink-0">
+      {/* Footer: purge settings + sign out */}
+      <div className="px-3 py-3 border-t border-slate-100 flex-shrink-0 space-y-1">
+        <div className="px-4 py-1.5">
+          <PurgeControl
+            purgeDays={purgeDays}
+            protectSaved={protectSaved}
+            onChangeDays={onChangePurgeDays}
+            onToggleProtect={onToggleProtectSaved}
+            upward
+          />
+        </div>
         {userEmail && <p className="text-xs text-slate-400 px-4 pb-1 truncate">{userEmail}</p>}
         <button onClick={onSignOut} className="w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm text-slate-600 hover:bg-red-50 hover:text-red-700 transition-colors">
           <LogOut size={16} className="text-slate-400" /> Sign out

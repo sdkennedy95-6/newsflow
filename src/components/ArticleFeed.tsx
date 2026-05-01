@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { RefreshCw, AlertCircle, Newspaper, Search, ArrowUpDown, Layers, Bookmark, Check } from 'lucide-react'
+import { RefreshCw, AlertCircle, Newspaper, Search, ArrowUpDown, Layers, Bookmark, Check, LayoutGrid, List, AlignJustify } from 'lucide-react'
 import type { Article, Category, KeywordFilter, SaveLabel } from '../types'
 import { ArticleCard } from './ArticleCard'
+import type { ViewMode } from './ArticleCard'
 import { FILTER_COLOR_STYLES } from './KeywordFilterModal'
-import { PurgeControl } from './PurgeControl'
 
 type SortOrder = 'newest' | 'oldest'
 
@@ -28,14 +28,10 @@ interface Props {
   activeKeywordFilter?: KeywordFilter | null
   purgeDays: number
   protectSaved: boolean
-  onChangePurgeDays: (days: number) => void
-  onToggleProtectSaved: () => void
 }
 
 /* M3 Filter Chip */
-function FilterChip({
-  active, onClick, icon, label,
-}: {
+function FilterChip({ active, onClick, icon, label }: {
   active: boolean; onClick: () => void; icon: React.ReactNode; label: string
 }) {
   return (
@@ -55,6 +51,33 @@ function FilterChip({
   )
 }
 
+/* View mode toggle button group */
+function ViewToggle({ viewMode, onChange }: { viewMode: ViewMode; onChange: (m: ViewMode) => void }) {
+  const modes: { mode: ViewMode; icon: React.ReactNode; title: string }[] = [
+    { mode: 'card',     icon: <LayoutGrid size={14} />,    title: 'Card view' },
+    { mode: 'list',     icon: <List size={14} />,          title: 'List view' },
+    { mode: 'expanded', icon: <AlignJustify size={14} />,  title: 'Expanded view' },
+  ]
+  return (
+    <div className="flex items-center rounded-full border border-slate-200 overflow-hidden">
+      {modes.map(({ mode, icon, title }) => (
+        <button
+          key={mode}
+          onClick={() => onChange(mode)}
+          title={title}
+          className={`p-1.5 transition-colors ${
+            viewMode === mode
+              ? 'bg-blue-100 text-blue-700'
+              : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+          }`}
+        >
+          {icon}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function GroupHeader({ feedName, count }: { feedName: string; count: number }) {
   return (
     <div className="col-span-full flex items-center gap-3 mt-2 mb-2 first:mt-0">
@@ -69,18 +92,19 @@ export function ArticleFeed({
   categoryId, categories, articles, loading, error,
   onRefresh, onMarkRead, labels, onSaveArticle, onUnsaveArticle, onCreateLabel, onPlayEpisode,
   searchQuery, activeKeywordFilter,
-  purgeDays, protectSaved, onChangePurgeDays, onToggleProtectSaved,
+  purgeDays, protectSaved,
 }: Props) {
   const prefs = loadPrefs()
   const [sortOrder, setSortOrder] = useState<SortOrder>(prefs.sortOrder ?? 'newest')
   const [groupByFeed, setGroupByFeed] = useState<boolean>(prefs.groupByFeed ?? false)
   const [savedFirst, setSavedFirst] = useState<boolean>(prefs.savedFirst ?? false)
+  const [viewMode, setViewMode] = useState<ViewMode>(prefs.viewMode ?? 'card')
   const [visibleCount, setVisibleCount] = useState(20)
   const [selectedFeed, setSelectedFeed] = useState<string | null>(null)
 
   useEffect(() => { setVisibleCount(20); setSelectedFeed(null) }, [categoryId])
   useEffect(() => { if (!groupByFeed) setSelectedFeed(null) }, [groupByFeed])
-  useEffect(() => { savePrefs({ sortOrder, groupByFeed, savedFirst }) }, [sortOrder, groupByFeed, savedFirst])
+  useEffect(() => { savePrefs({ sortOrder, groupByFeed, savedFirst, viewMode }) }, [sortOrder, groupByFeed, savedFirst, viewMode])
 
   const category = categories.find(c => c.id === categoryId)
   const isKeywordView = !!activeKeywordFilter
@@ -144,6 +168,13 @@ export function ArticleFeed({
     ? FILTER_COLOR_STYLES[activeLabel.color] ?? FILTER_COLOR_STYLES['violet']
     : null
 
+  /* Grid/list class depending on view mode */
+  const gridClass = viewMode === 'card'
+    ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'
+    : viewMode === 'expanded'
+    ? 'flex flex-col gap-4 max-w-2xl'
+    : 'flex flex-col gap-1'
+
   const renderCard = (article: Article) => {
     const cat = categories.find(c => c.id === article.categoryId)
     return (
@@ -154,6 +185,7 @@ export function ArticleFeed({
         onCreateLabel={onCreateLabel} onPlayEpisode={onPlayEpisode}
         showCategory={showCategory}
         highlightKeywords={isKeywordView ? activeKeywordFilter!.keywords : undefined}
+        viewMode={viewMode}
       />
     )
   }
@@ -168,7 +200,6 @@ export function ArticleFeed({
             {isLabelView && activeLabel && filterStyles && (
               <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${filterStyles.badge}`}>Label</span>
             )}
-            {/* M3 Headline Small */}
             <h2 className="text-2xl font-normal text-slate-900 tracking-tight">{title}</h2>
           </div>
           {isKeywordView && activeKeywordFilter!.keywords.length > 0 && (
@@ -199,7 +230,7 @@ export function ArticleFeed({
         )}
       </div>
 
-      {/* M3 Filter Chips toolbar */}
+      {/* Toolbar: filter chips + view toggle */}
       <div className="flex items-center gap-2 mb-5 flex-wrap">
         <FilterChip
           active={sortOrder === 'oldest'}
@@ -221,10 +252,9 @@ export function ArticleFeed({
             label="Saved first"
           />
         )}
-        <PurgeControl
-          purgeDays={purgeDays} protectSaved={protectSaved}
-          onChangeDays={onChangePurgeDays} onToggleProtect={onToggleProtectSaved}
-        />
+        <div className="ml-auto">
+          <ViewToggle viewMode={viewMode} onChange={setViewMode} />
+        </div>
       </div>
 
       {/* Feed picker pills (group by feed) */}
@@ -266,7 +296,7 @@ export function ArticleFeed({
         </div>
       )}
 
-      {/* M3 Loading skeleton */}
+      {/* Loading skeleton */}
       {loading && articles.length === 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -309,7 +339,7 @@ export function ArticleFeed({
       {/* Articles — flat */}
       {totalCount > 0 && !groupByFeed && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className={gridClass}>
             {groups[0].articles.map(renderCard)}
           </div>
           {visibleCount < totalCount && (
@@ -331,7 +361,7 @@ export function ArticleFeed({
           {groups.map(group => (
             <div key={group.feedName}>
               {!selectedFeed && <GroupHeader feedName={group.feedName} count={group.articles.length} />}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className={gridClass}>
                 {group.articles.map(renderCard)}
               </div>
             </div>

@@ -72,5 +72,17 @@ export function useCategories(userId: string | null) {
     setCategories(prev => prev.filter(c => c.id !== id))
   }, [])
 
-  return { categories, addCategory, updateCategory, deleteCategory }
+  const reorderCategory = useCallback((id: string, direction: 'up' | 'down') => {
+    setCategories(prev => {
+      const idx = prev.findIndex(c => c.id === id)
+      if (idx === -1) return prev
+      const next = direction === 'up' ? idx - 1 : idx + 1
+      if (next < 0 || next >= prev.length) return prev
+      const arr = [...prev]
+      ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
+      return arr
+    })
+  }, [])
+
+  return { categories, addCategory, updateCategory, deleteCategory, reorderCategory }
 }

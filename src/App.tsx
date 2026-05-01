@@ -26,7 +26,7 @@ export default function App() {
   const { user, loading: authLoading, signOut } = useAuth()
   const userId = user?.id ?? null
 
-  const { categories, addCategory, updateCategory, deleteCategory } = useCategories(userId)
+  const { categories, addCategory, updateCategory, deleteCategory, reorderCategory } = useCategories(userId)
   const { filters: keywordFilters, addFilter, updateFilter, deleteFilter } = useKeywordFilters(userId)
   const { labels, addLabel, updateLabel, deleteLabel } = useSaveLabels(userId)
   const { articlesByCategory, allArticles, savedArticles, loading, errors, fetchCategory, markRead, saveArticle, unsaveArticle, purgeOldSaved } = useArticles(categories, userId)
@@ -184,6 +184,7 @@ export default function App() {
             deleteCategory(id)
             if (selectedId === id) setSelectedId(categories.find(c => c.id !== id)?.id ?? null)
           }}
+          onReorderCategory={reorderCategory}
           keywordFilters={keywordFilters}
           onAddKeywordFilter={() => setKfModal({ open: true, editing: null })}
           onEditKeywordFilter={f => setKfModal({ open: true, editing: f })}
@@ -205,6 +206,10 @@ export default function App() {
           goalReached={goalReached}
           justReached={justReached}
           onSetGoal={setGoal}
+          purgeDays={purgeDays}
+          protectSaved={protectSaved}
+          onChangePurgeDays={setPurgeDays}
+          onToggleProtectSaved={() => setProtectSaved(v => !v)}
           userEmail={user.email}
           onSignOut={signOut}
         />
@@ -237,8 +242,6 @@ export default function App() {
               activeKeywordFilter={activeKeywordFilter}
               purgeDays={purgeDays}
               protectSaved={protectSaved}
-              onChangePurgeDays={setPurgeDays}
-              onToggleProtectSaved={() => setProtectSaved(v => !v)}
             />
           </div>
         </main>

@@ -15,9 +15,10 @@ interface Props {
   protectSaved: boolean
   onChangeDays: (days: number) => void
   onToggleProtect: () => void
+  upward?: boolean
 }
 
-export function PurgeControl({ purgeDays, protectSaved, onChangeDays, onToggleProtect }: Props) {
+export function PurgeControl({ purgeDays, protectSaved, onChangeDays, onToggleProtect, upward = false }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const label = PURGE_OPTIONS.find(o => o.days === purgeDays)?.label ?? `${purgeDays}d`
@@ -47,7 +48,7 @@ export function PurgeControl({ purgeDays, protectSaved, onChangeDays, onTogglePr
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-2xl shadow-lg border border-slate-100 py-1.5 z-30">
+        <div className={`absolute ${upward ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 w-56 bg-white rounded-2xl shadow-lg border border-slate-100 py-1.5 z-30`}>
           <div className="px-4 py-1 text-[11px] font-medium text-slate-400 uppercase tracking-widest">Hide articles older than</div>
 
           {PURGE_OPTIONS.map(opt => (

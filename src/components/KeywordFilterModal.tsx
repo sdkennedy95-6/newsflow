@@ -79,13 +79,13 @@ export function KeywordFilterModal({ filter, onSave, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col">
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-md flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">
+          <h2 className="text-lg font-medium text-slate-900">
             {filter ? 'Edit Keyword Filter' : 'New Keyword Filter'}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -93,7 +93,7 @@ export function KeywordFilterModal({ filter, onSave, onClose }: Props) {
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
           {/* Name */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+            <label className="block text-xs font-medium text-slate-500 uppercase tracking-widest mb-2">
               Filter Name <span className="text-red-400">*</span>
             </label>
             <input
@@ -101,7 +101,7 @@ export function KeywordFilterModal({ filter, onSave, onClose }: Props) {
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g., AI & Machine Learning, Climate Tech"
-              className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 transition-shadow ${
+              className={`w-full px-3 py-2.5 rounded-xl border bg-slate-50 text-sm outline-none focus:ring-2 focus:bg-white transition-all ${
                 errors.name ? 'border-red-300 focus:ring-red-200' : 'border-slate-200 focus:ring-blue-200 focus:border-blue-400'
               }`}
             />
@@ -110,7 +110,7 @@ export function KeywordFilterModal({ filter, onSave, onClose }: Props) {
 
           {/* Color */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Color</label>
+            <label className="block text-xs font-medium text-slate-500 uppercase tracking-widest mb-2">Color</label>
             <div className="flex gap-2">
               {FILTER_COLORS.map(c => (
                 <button
@@ -128,13 +128,13 @@ export function KeywordFilterModal({ filter, onSave, onClose }: Props) {
 
           {/* Keywords */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+            <label className="block text-xs font-medium text-slate-500 uppercase tracking-widest mb-2">
               Keywords <span className="text-red-400">*</span>
             </label>
 
             {/* Tag input */}
             <div
-              className={`min-h-[80px] w-full px-3 py-2 rounded-lg border text-sm flex flex-wrap gap-1.5 items-start cursor-text transition-shadow ${
+              className={`min-h-[80px] w-full px-3 py-2 rounded-xl border bg-slate-50 text-sm flex flex-wrap gap-1.5 items-start cursor-text transition-all focus-within:bg-white ${
                 errors.keywords ? 'border-red-300' : 'border-slate-200 focus-within:ring-2 focus-within:ring-blue-200 focus-within:border-blue-400'
               }`}
               onClick={() => inputRef.current?.focus()}
@@ -165,17 +165,17 @@ export function KeywordFilterModal({ filter, onSave, onClose }: Props) {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex items-center justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              className="px-5 py-2.5 rounded-full text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="px-5 py-2.5 rounded-full bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
             >
               {filter ? 'Save Changes' : 'Create Filter'}
             </button>

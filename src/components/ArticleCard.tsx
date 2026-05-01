@@ -29,11 +29,8 @@ export function ArticleCard({ article, category, onMarkRead, labels, onSaveArtic
   const colors = category ? COLOR_MAP[category.color] : COLOR_MAP['blue']
 
   const formattedDate = (() => {
-    try {
-      return formatDistanceToNow(new Date(article.pubDate), { addSuffix: true })
-    } catch {
-      return ''
-    }
+    try { return formatDistanceToNow(new Date(article.pubDate), { addSuffix: true }) }
+    catch { return '' }
   })()
 
   const handleOpen = () => {
@@ -42,11 +39,10 @@ export function ArticleCard({ article, category, onMarkRead, labels, onSaveArtic
   }
 
   return (
-    <div
-      className={`bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col ${
-        article.isRead ? 'opacity-70' : ''
-      }`}
-    >
+    /* M3 Elevated Card — shadow instead of border, rounded-2xl (20dp), surface background */
+    <div className={`bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col overflow-hidden ${
+      article.isRead ? 'opacity-60' : ''
+    }`}>
       {article.thumbnail && (
         <div className="h-44 overflow-hidden bg-slate-100 flex-shrink-0">
           <img
@@ -59,40 +55,41 @@ export function ArticleCard({ article, category, onMarkRead, labels, onSaveArtic
       )}
 
       <div className="p-4 flex flex-col flex-1">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
+        {/* Chips row */}
+        <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
           {article.contentType === 'podcast' && (
-            <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 flex-shrink-0">
+            <span className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-violet-100 text-violet-800">
               <Mic size={10} /> Podcast
             </span>
           )}
           {showCategory && category && article.contentType !== 'podcast' && (
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors.badge}`}>
+            <span className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full ${colors.badge}`}>
               {category.icon} {category.name}
             </span>
           )}
-          <span className="text-xs text-slate-400">{article.feedName}</span>
           {matched.length > 0 && matched.slice(0, 2).map(kw => (
-            <span key={kw} className="text-xs px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 font-medium">{kw}</span>
+            <span key={kw} className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">{kw}</span>
           ))}
-          {article.isRead && (
-            <span className="text-xs text-slate-300 ml-auto">Read</span>
-          )}
+          <span className="text-[11px] text-slate-400 ml-auto">{article.feedName}</span>
+          {article.isRead && <span className="text-[11px] text-slate-300">· Read</span>}
         </div>
 
-        <h3 className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2 mb-2 flex-1">
+        {/* M3 Title Medium */}
+        <h3 className="text-sm font-medium text-slate-900 leading-snug line-clamp-2 mb-2 flex-1">
           {article.title}
         </h3>
 
         {article.description && (
-          <p className="text-xs text-slate-500 line-clamp-2 mb-3">
+          <p className="text-xs text-slate-500 line-clamp-2 mb-3 leading-relaxed">
             {article.description}
           </p>
         )}
 
-        <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">
-          <span className="text-xs text-slate-400">{formattedDate}</span>
+        {/* Footer */}
+        <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-slate-50">
+          <span className="text-[11px] text-slate-400">{formattedDate}</span>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <SaveMenu
               isSaved={article.isSaved}
               labelId={article.labelId}
@@ -101,18 +98,17 @@ export function ArticleCard({ article, category, onMarkRead, labels, onSaveArtic
               onUnsave={() => onUnsaveArticle(article.id)}
               onCreateLabel={onCreateLabel}
             />
-
             {article.contentType === 'podcast' ? (
               <button
                 onClick={() => onPlayEpisode(article)}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-50 transition-colors"
+                className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium text-violet-700 hover:bg-violet-50 transition-colors"
               >
                 <Play size={11} className="fill-current" /> Play
               </button>
             ) : (
               <button
                 onClick={handleOpen}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium text-blue-700 hover:bg-blue-50 transition-colors"
               >
                 Read <ExternalLink size={11} />
               </button>

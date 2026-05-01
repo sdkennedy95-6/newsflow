@@ -9,35 +9,32 @@ interface Props {
 
 export function Header({ searchQuery, onSearchChange, sidebarOpen, onToggleSidebar }: Props) {
   return (
-    <header className="h-14 bg-white border-b border-slate-100 flex items-center gap-4 px-4 flex-shrink-0">
+    <header className="h-16 bg-white shadow-sm flex items-center gap-3 px-4 flex-shrink-0 z-10">
       <button
         onClick={onToggleSidebar}
-        className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+        className="lg:hidden w-10 h-10 flex items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors"
       >
-        {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+        {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      <div className="relative flex-1 max-w-md">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      {/* M3 Search bar */}
+      <div className="relative flex-1 max-w-lg">
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
         <input
           type="text"
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}
           placeholder="Search articles…"
-          className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 focus:bg-white transition-all"
+          className="w-full pl-11 pr-10 py-2.5 rounded-full bg-slate-100 text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:bg-white focus:ring-2 focus:ring-blue-600/30 transition-all border-0"
         />
         {searchQuery && (
           <button
             onClick={() => onSearchChange('')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600"
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
           >
-            <X size={13} />
+            <X size={14} />
           </button>
         )}
-      </div>
-
-      <div className="ml-auto flex items-center gap-2 text-xs text-slate-400">
-        <span className="hidden sm:block">Powered by RSS</span>
       </div>
     </header>
   )

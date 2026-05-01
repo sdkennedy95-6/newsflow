@@ -31,21 +31,17 @@ export function SaveMenu({ isSaved, labelId, labels, onSave, onUnsave, onCreateL
       <div className="flex items-center">
         <button
           onClick={() => isSaved ? onUnsave() : onSave()}
-          className={`p-1.5 rounded-l-lg transition-colors ${
-            isSaved
-              ? 'text-amber-500 hover:text-amber-600 bg-amber-50'
-              : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50'
+          className={`p-1.5 rounded-full transition-colors ${
+            isSaved ? 'text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
           }`}
           title={isSaved ? (activeLabel ? `Saved: ${activeLabel.name}` : 'Saved') : 'Save article'}
         >
-          {isSaved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+          {isSaved ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
         </button>
         <button
           onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-          className={`p-1 rounded-r-lg border-l transition-colors ${
-            isSaved
-              ? 'text-amber-400 hover:text-amber-600 bg-amber-50 border-amber-100'
-              : 'text-slate-300 hover:text-slate-500 hover:bg-slate-50 border-slate-100'
+          className={`p-0.5 rounded-full transition-colors ${
+            isSaved ? 'text-amber-400 hover:bg-amber-50' : 'text-slate-300 hover:text-slate-500 hover:bg-slate-50'
           }`}
           title="Save to label"
         >
@@ -54,16 +50,17 @@ export function SaveMenu({ isSaved, labelId, labels, onSave, onUnsave, onCreateL
       </div>
 
       {open && (
-        <div className="absolute bottom-full right-0 mb-1 w-52 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-30">
-          <div className="px-3 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wide">Save to</div>
+        /* M3 Menu — rounded-2xl, shadow-lg */
+        <div className="absolute bottom-full right-0 mb-1 w-52 bg-white rounded-2xl shadow-lg border border-slate-100 py-2 z-30">
+          <p className="px-4 py-1 text-[11px] font-medium text-slate-400 uppercase tracking-widest">Save to</p>
 
           <button
             onClick={() => { onSave(); setOpen(false) }}
-            className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50 transition-colors ${
-              isSaved && !labelId ? 'text-amber-600 font-medium' : 'text-slate-700'
+            className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-slate-50 transition-colors ${
+              isSaved && !labelId ? 'text-amber-700 font-medium' : 'text-slate-700'
             }`}
           >
-            <Bookmark size={13} className="text-amber-400 flex-shrink-0" />
+            <Bookmark size={14} className="text-amber-500 flex-shrink-0" />
             Save for later
             {isSaved && !labelId && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400" />}
           </button>
@@ -75,11 +72,11 @@ export function SaveMenu({ isSaved, labelId, labels, onSave, onUnsave, onCreateL
               <button
                 key={label.id}
                 onClick={() => { onSave(label.id); setOpen(false) }}
-                className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50 transition-colors ${
+                className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-slate-50 transition-colors ${
                   isActive ? 'font-medium text-slate-900' : 'text-slate-700'
                 }`}
               >
-                <Tag size={13} className={`flex-shrink-0 ${styles.dot.replace('bg-', 'text-')}`} />
+                <Tag size={14} className={`flex-shrink-0 ${styles.dot.replace('bg-', 'text-')}`} />
                 <span className="flex-1 text-left truncate">{label.name}</span>
                 {isActive && <span className={`w-1.5 h-1.5 rounded-full ${styles.dot} flex-shrink-0`} />}
               </button>
@@ -89,10 +86,9 @@ export function SaveMenu({ isSaved, labelId, labels, onSave, onUnsave, onCreateL
           <div className="border-t border-slate-100 mt-1 pt-1">
             <button
               onClick={() => { onCreateLabel(); setOpen(false) }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
+              className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 transition-colors"
             >
-              <Plus size={13} />
-              New label…
+              <Plus size={14} /> New label…
             </button>
           </div>
         </div>

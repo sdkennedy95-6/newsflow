@@ -35,7 +35,7 @@ export function PurgeControl({ purgeDays, protectSaved, onChangeDays, onTogglePr
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
           purgeDays > 0
             ? 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
             : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300 hover:text-slate-600'
@@ -47,15 +47,15 @@ export function PurgeControl({ purgeDays, protectSaved, onChangeDays, onTogglePr
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-30">
-          <div className="px-3 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wide">Hide articles older than</div>
+        <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-2xl shadow-lg border border-slate-100 py-1.5 z-30">
+          <div className="px-4 py-1 text-[11px] font-medium text-slate-400 uppercase tracking-widest">Hide articles older than</div>
 
           {PURGE_OPTIONS.map(opt => (
             <button
               key={opt.days}
               onClick={() => { onChangeDays(opt.days); setOpen(false) }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-slate-50 transition-colors ${
-                purgeDays === opt.days ? 'text-blue-600 font-medium' : 'text-slate-700'
+              className={`w-full flex items-center justify-between px-4 py-1.5 text-sm hover:bg-slate-50 transition-colors ${
+                purgeDays === opt.days ? 'text-blue-700 font-medium' : 'text-slate-700'
               }`}
             >
               {opt.label}
@@ -64,7 +64,7 @@ export function PurgeControl({ purgeDays, protectSaved, onChangeDays, onTogglePr
           ))}
 
           {purgeDays > 0 && (
-            <div className="border-t border-slate-100 mt-1 pt-1 px-3 pb-1">
+            <div className="border-t border-slate-100 mt-1 pt-1 px-4 pb-1">
               <button
                 onClick={onToggleProtect}
                 className="flex items-center gap-2 w-full text-sm text-slate-700 hover:text-slate-900 transition-colors py-1.5"

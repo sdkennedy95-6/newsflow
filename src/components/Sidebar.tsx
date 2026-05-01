@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Bookmark, Layers, ChevronRight, Pencil, Trash2, Search, LogOut, Tag } from 'lucide-react'
+import { Plus, Bookmark, Layers, Pencil, Trash2, Search, LogOut, Tag, Check } from 'lucide-react'
 import type { Category, KeywordFilter, SaveLabel } from '../types'
 import { COLOR_MAP } from '../defaultCategories'
 import { FILTER_COLOR_STYLES } from './KeywordFilterModal'
@@ -33,30 +33,12 @@ interface Props {
 }
 
 export function Sidebar({
-  categories,
-  selectedId,
-  onSelect,
-  savedCount,
-  onAddCategory,
-  onEditCategory,
-  onDeleteCategory,
-  keywordFilters,
-  onAddKeywordFilter,
-  onEditKeywordFilter,
-  onDeleteKeywordFilter,
-  labels,
-  labelCounts,
-  onAddLabel,
-  onEditLabel,
-  onDeleteLabel,
-  todayCount,
-  goal,
-  streak,
-  goalReached,
-  justReached,
-  onSetGoal,
-  userEmail,
-  onSignOut,
+  categories, selectedId, onSelect, savedCount,
+  onAddCategory, onEditCategory, onDeleteCategory,
+  keywordFilters, onAddKeywordFilter, onEditKeywordFilter, onDeleteKeywordFilter,
+  labels, labelCounts, onAddLabel, onEditLabel, onDeleteLabel,
+  todayCount, goal, streak, goalReached, justReached, onSetGoal,
+  userEmail, onSignOut,
 }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -71,45 +53,39 @@ export function Sidebar({
     }
   }
 
-  const NavItem = ({
-    id,
-    icon,
-    label,
-    badge,
-  }: {
-    id: string | null
-    icon: React.ReactNode
-    label: string
-    badge?: number
+  /* M3 Navigation Drawer item — full-width pill indicator */
+  const NavItem = ({ id, icon, label, badge }: {
+    id: string | null; icon: React.ReactNode; label: string; badge?: number
   }) => {
     const isActive = selectedId === id
     return (
       <button
         onClick={() => onSelect(id)}
-        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-full text-sm font-medium transition-colors ${
           isActive
-            ? 'bg-blue-50 text-blue-700'
-            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            ? 'bg-blue-100 text-blue-900'
+            : 'text-slate-700 hover:bg-slate-100'
         }`}
       >
-        <span className={isActive ? 'text-blue-600' : 'text-slate-400'}>{icon}</span>
-        <span className="flex-1 text-left">{label}</span>
+        <span className={isActive ? 'text-blue-800' : 'text-slate-500'}>{icon}</span>
+        <span className="flex-1 text-left tracking-wide">{label}</span>
         {badge !== undefined && badge > 0 && (
-          <span className={`text-xs px-1.5 py-0.5 rounded-full ${isActive ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'}`}>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            isActive ? 'bg-blue-200 text-blue-900' : 'bg-slate-200 text-slate-600'
+          }`}>
             {badge}
           </span>
         )}
-        {isActive && <ChevronRight size={14} className="text-blue-400" />}
       </button>
     )
   }
 
-  const SectionHeader = ({ label, onAdd, title }: { label: string; onAdd: () => void; title: string }) => (
-    <div className="flex items-center justify-between px-3 mb-1">
-      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+  const SectionLabel = ({ label, onAdd, title }: { label: string; onAdd: () => void; title: string }) => (
+    <div className="flex items-center justify-between px-4 mb-0.5 mt-2">
+      <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">{label}</span>
       <button
         onClick={onAdd}
-        className="p-0.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+        className="w-7 h-7 flex items-center justify-center rounded-full text-slate-400 hover:text-blue-700 hover:bg-blue-50 transition-colors"
         title={title}
       >
         <Plus size={14} />
@@ -118,42 +94,37 @@ export function Sidebar({
   )
 
   return (
-    <aside className="w-60 flex-shrink-0 bg-white border-r border-slate-100 flex flex-col h-full">
-      {/* Logo */}
-      <div className="px-4 py-4 border-b border-slate-100 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-            <Layers size={14} className="text-white" />
+    <aside className="w-64 flex-shrink-0 bg-white shadow-md flex flex-col h-full">
+      {/* M3 Drawer headline */}
+      <div className="px-5 py-5 flex-shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shadow-sm">
+            <Layers size={15} className="text-white" />
           </div>
-          <span className="font-bold text-slate-900 text-base">NewsFlow</span>
+          <span className="text-lg font-medium text-slate-900 tracking-tight">NewsFlow</span>
         </div>
       </div>
 
       {/* Reading goal */}
       <ReadingGoalWidget
-        todayCount={todayCount}
-        goal={goal}
-        streak={streak}
-        goalReached={goalReached}
-        justReached={justReached}
-        onSetGoal={onSetGoal}
+        todayCount={todayCount} goal={goal} streak={streak}
+        goalReached={goalReached} justReached={justReached} onSetGoal={onSetGoal}
       />
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-1 min-h-0">
-        <NavItem id={null} icon={<Layers size={16} />} label="All Articles" />
-        <NavItem id="saved" icon={<Bookmark size={16} />} label="Saved" badge={savedCount} />
+      <nav className="flex-1 overflow-y-auto px-3 space-y-0.5 min-h-0 py-1">
+        <NavItem id={null} icon={<Layers size={18} />} label="All Articles" />
+        <NavItem id="saved" icon={<Bookmark size={18} />} label="Saved" badge={savedCount} />
 
-        {/* Label sub-items under Saved */}
+        {/* Label sub-items */}
         {labels.length > 0 && (
-          <div className="pl-4 space-y-0.5">
+          <div className="pl-3 space-y-0.5 py-0.5">
             {labels.map(label => {
               const styles = FILTER_COLOR_STYLES[label.color] ?? FILTER_COLOR_STYLES['violet']
               const labelNavId = `saved:${label.id}`
               const isActive = selectedId === labelNavId
               const isHovered = hoveredId === labelNavId
               const count = labelCounts[label.id] ?? 0
-
               return (
                 <div
                   key={label.id}
@@ -163,183 +134,114 @@ export function Sidebar({
                 >
                   <button
                     onClick={() => onSelect(labelNavId)}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-colors ${
+                      isActive ? 'bg-blue-50 text-blue-900' : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     <Tag size={11} className={`flex-shrink-0 ${styles.dot.replace('bg-', 'text-')}`} />
                     <span className="flex-1 text-left truncate">{label.name}</span>
                     {count > 0 && (
-                      <span className={`text-xs px-1 py-0.5 rounded-full ${isActive ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-500'}`}>
-                        {count}
-                      </span>
+                      <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">{count}</span>
                     )}
                   </button>
-
                   {isHovered && (
-                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-md shadow-sm border border-slate-100 px-1 py-0.5 z-10">
-                      <button
-                        onClick={e => { e.stopPropagation(); onEditLabel(label) }}
-                        className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil size={11} />
-                      </button>
-                      <button
-                        onClick={e => { e.stopPropagation(); handleDelete(label.id, onDeleteLabel) }}
-                        className={`p-1 rounded transition-colors ${
-                          confirmDelete === label.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'
-                        }`}
-                        title={confirmDelete === label.id ? 'Click again to confirm' : 'Delete'}
-                      >
-                        <Trash2 size={11} />
-                      </button>
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-full shadow border border-slate-100 px-1 py-0.5 z-10">
+                      <button onClick={e => { e.stopPropagation(); onEditLabel(label) }} className="p-1 rounded-full text-slate-400 hover:text-blue-600 transition-colors" title="Edit"><Pencil size={11} /></button>
+                      <button onClick={e => { e.stopPropagation(); handleDelete(label.id, onDeleteLabel) }} className={`p-1 rounded-full transition-colors ${confirmDelete === label.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'}`} title={confirmDelete === label.id ? 'Confirm' : 'Delete'}><Trash2 size={11} /></button>
                     </div>
                   )}
                 </div>
               )
             })}
-            <button
-              onClick={onAddLabel}
-              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-            >
+            <button onClick={onAddLabel} className="w-full flex items-center gap-2 px-3 py-1.5 rounded-full text-xs text-slate-400 hover:text-blue-700 hover:bg-blue-50 transition-colors">
               <Plus size={11} /> New label
             </button>
           </div>
         )}
 
         {/* Categories */}
-        <div className="pt-3 pb-1">
-          <SectionHeader label="Categories" onAdd={onAddCategory} title="Add category" />
-
+        <div className="pt-2">
+          <SectionLabel label="Categories" onAdd={onAddCategory} title="Add category" />
           {categories.map(cat => {
             const colors = COLOR_MAP[cat.color]
             const isActive = selectedId === cat.id
             const isHovered = hoveredId === cat.id
-
             return (
-              <div
-                key={cat.id}
-                className="relative"
+              <div key={cat.id} className="relative"
                 onMouseEnter={() => setHoveredId(cat.id)}
                 onMouseLeave={() => setHoveredId(null)}
               >
                 <button
                   onClick={() => onSelect(cat.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive ? `${colors.bg} ${colors.text}` : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                    isActive ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${colors.dot}`} />
+                  {isActive
+                    ? <Check size={16} className="text-blue-700 flex-shrink-0" />
+                    : <span className={`w-2 h-2 rounded-full flex-shrink-0 ${colors.dot}`} />
+                  }
                   <span className="flex-1 text-left truncate">{cat.icon} {cat.name}</span>
-                  {isActive && !isHovered && <ChevronRight size={14} className={colors.text} />}
                 </button>
-
                 {isHovered && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-md shadow-sm border border-slate-100 px-1 py-0.5 z-10">
-                    <button
-                      onClick={e => { e.stopPropagation(); onEditCategory(cat) }}
-                      className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
-                      title="Edit"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleDelete(cat.id, onDeleteCategory) }}
-                      className={`p-1 rounded transition-colors ${
-                        confirmDelete === cat.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'
-                      }`}
-                      title={confirmDelete === cat.id ? 'Click again to confirm' : 'Delete'}
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-full shadow border border-slate-100 px-1 py-0.5 z-10">
+                    <button onClick={e => { e.stopPropagation(); onEditCategory(cat) }} className="p-1 rounded-full text-slate-400 hover:text-blue-600 transition-colors" title="Edit"><Pencil size={12} /></button>
+                    <button onClick={e => { e.stopPropagation(); handleDelete(cat.id, onDeleteCategory) }} className={`p-1 rounded-full transition-colors ${confirmDelete === cat.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'}`} title={confirmDelete === cat.id ? 'Confirm' : 'Delete'}><Trash2 size={12} /></button>
                   </div>
                 )}
               </div>
             )
           })}
-
-          {categories.length === 0 && (
-            <p className="text-xs text-slate-400 px-3 py-2">No categories yet</p>
-          )}
+          {categories.length === 0 && <p className="text-xs text-slate-400 px-4 py-2">No categories yet</p>}
         </div>
 
-        {/* Keyword Filters */}
-        <div className="pt-2 pb-1">
-          <SectionHeader label="Saved Searches" onAdd={onAddKeywordFilter} title="Add keyword filter" />
-
+        {/* Saved Searches */}
+        <div className="pt-2">
+          <SectionLabel label="Saved Searches" onAdd={onAddKeywordFilter} title="Add keyword filter" />
           {keywordFilters.map(kf => {
             const styles = FILTER_COLOR_STYLES[kf.color] ?? FILTER_COLOR_STYLES['violet']
             const isActive = selectedId === `kf_${kf.id}`
             const isHovered = hoveredId === `kf_${kf.id}`
-
             return (
-              <div
-                key={kf.id}
-                className="relative"
+              <div key={kf.id} className="relative"
                 onMouseEnter={() => setHoveredId(`kf_${kf.id}`)}
                 onMouseLeave={() => setHoveredId(null)}
               >
                 <button
                   onClick={() => onSelect(`kf_${kf.id}`)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-colors ${
+                    isActive ? 'bg-blue-100 text-blue-900' : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${styles.dot}`} />
+                  {isActive
+                    ? <Check size={16} className="text-blue-700 flex-shrink-0" />
+                    : <span className={`w-2 h-2 rounded-full flex-shrink-0 ${styles.dot}`} />
+                  }
                   <span className="flex-1 text-left truncate">{kf.name}</span>
-                  {isActive && !isHovered && <ChevronRight size={14} className="text-slate-400" />}
                 </button>
-
                 {isHovered && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-md shadow-sm border border-slate-100 px-1 py-0.5 z-10">
-                    <button
-                      onClick={e => { e.stopPropagation(); onEditKeywordFilter(kf) }}
-                      className="p-1 rounded text-slate-400 hover:text-blue-600 transition-colors"
-                      title="Edit"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleDelete(kf.id, onDeleteKeywordFilter) }}
-                      className={`p-1 rounded transition-colors ${
-                        confirmDelete === kf.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'
-                      }`}
-                      title={confirmDelete === kf.id ? 'Click again to confirm' : 'Delete'}
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-full shadow border border-slate-100 px-1 py-0.5 z-10">
+                    <button onClick={e => { e.stopPropagation(); onEditKeywordFilter(kf) }} className="p-1 rounded-full text-slate-400 hover:text-blue-600 transition-colors" title="Edit"><Pencil size={12} /></button>
+                    <button onClick={e => { e.stopPropagation(); handleDelete(kf.id, onDeleteKeywordFilter) }} className={`p-1 rounded-full transition-colors ${confirmDelete === kf.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'}`} title={confirmDelete === kf.id ? 'Confirm' : 'Delete'}><Trash2 size={12} /></button>
                   </div>
                 )}
               </div>
             )
           })}
-
           {keywordFilters.length === 0 && (
-            <button
-              onClick={onAddKeywordFilter}
-              className="w-full text-left px-3 py-2 text-xs text-slate-400 hover:text-blue-600 transition-colors flex items-center gap-1.5"
-            >
+            <button onClick={onAddKeywordFilter} className="w-full text-left px-4 py-2 text-xs text-slate-400 hover:text-blue-700 transition-colors flex items-center gap-1.5 rounded-full hover:bg-blue-50">
               <Search size={11} /> Create your first saved search
             </button>
           )}
         </div>
       </nav>
 
-      {/* Footer */}
-      <div className="p-3 border-t border-slate-100 flex-shrink-0 space-y-1">
-        <button onClick={onAddCategory} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
-          <Plus size={14} /> New Category
+      {/* M3 Drawer footer */}
+      <div className="px-3 py-3 border-t border-slate-100 flex-shrink-0">
+        {userEmail && <p className="text-xs text-slate-400 px-4 pb-1 truncate">{userEmail}</p>}
+        <button onClick={onSignOut} className="w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm text-slate-600 hover:bg-red-50 hover:text-red-700 transition-colors">
+          <LogOut size={16} className="text-slate-400" /> Sign out
         </button>
-        <button onClick={onAddKeywordFilter} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
-          <Search size={14} /> New Saved Search
-        </button>
-        <div className="border-t border-slate-100 pt-2 mt-1">
-          {userEmail && <p className="text-xs text-slate-400 px-3 pb-1 truncate">{userEmail}</p>}
-          <button onClick={onSignOut} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors">
-            <LogOut size={14} /> Sign out
-          </button>
-        </div>
       </div>
     </aside>
   )

@@ -28,16 +28,16 @@ export function SaveLabelModal({ label, onSave, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col">
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">{label ? 'Edit Label' : 'New Label'}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+          <h2 className="text-lg font-medium text-slate-900">{label ? 'Edit Label' : 'New Label'}</h2>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
             <X size={18} />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+            <label className="block text-xs font-medium text-slate-500 uppercase tracking-widest mb-2">
               Label Name <span className="text-red-400">*</span>
             </label>
             <input
@@ -46,14 +46,14 @@ export function SaveLabelModal({ label, onSave, onClose }: Props) {
               onChange={e => { setName(e.target.value); setError('') }}
               placeholder="e.g., Save for blog, Read later"
               autoFocus
-              className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 transition-shadow ${
+              className={`w-full px-3 py-2.5 rounded-xl border bg-slate-50 text-sm outline-none focus:ring-2 focus:bg-white transition-all ${
                 error ? 'border-red-300 focus:ring-red-200' : 'border-slate-200 focus:ring-blue-200 focus:border-blue-400'
               }`}
             />
             {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Color</label>
+            <label className="block text-xs font-medium text-slate-500 uppercase tracking-widest mb-2">Color</label>
             <div className="flex gap-2">
               {FILTER_COLORS.map(c => (
                 <button
@@ -68,17 +68,17 @@ export function SaveLabelModal({ label, onSave, onClose }: Props) {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex items-center justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              className="px-5 py-2.5 rounded-full text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="px-5 py-2.5 rounded-full bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
             >
               {label ? 'Save Changes' : 'Create Label'}
             </button>

@@ -94,14 +94,14 @@ export function useArticles(_categories: Category[], userId: string | null) {
       setSupabaseSaved([])
       return
     }
-    supabase.from('saved_articles').select('*').eq('user_id', userId).then(({ data }) => {
-      if (data && data.length > 0) {
-        setSavedIds(new Set(data.map((r: any) => r.id)))
-        setSupabaseSaved(data.map(rowToArticle))
-        const labelMap: Record<string, string | undefined> = {}
-        data.forEach((r: any) => { if (r.label_id) labelMap[r.id] = r.label_id })
-        setSavedLabelMap(labelMap)
-      }
+    supabase.from('saved_articles').select('*').eq('user_id', userId).then(({ data, error }) => {
+      if (error) { console.error('Failed to load saved articles:', error.message); return }
+      const rows = data ?? []
+      setSavedIds(new Set(rows.map((r: any) => r.id)))
+      setSupabaseSaved(rows.map(rowToArticle))
+      const labelMap: Record<string, string | undefined> = {}
+      rows.forEach((r: any) => { if (r.label_id) labelMap[r.id] = r.label_id })
+      setSavedLabelMap(labelMap)
     })
   }, [userId])
 
@@ -174,7 +174,12 @@ export function useArticles(_categories: Category[], userId: string | null) {
     if (userId) {
       const saved = { ...articleData, isSaved: true, labelId }
       setSupabaseSaved(prev => [...prev.filter(a => a.id !== articleId), saved])
-      supabase.from('saved_articles').upsert(articleToRow(saved, userId)).then()
+      // Delete then insert — avoids needing an UPDATE RLS policy (upsert requires it)
+      ;(async () => {
+        await supabase.from('saved_articles').delete().eq('id', articleId).eq('user_id', userId)
+        const { error } = await supabase.from('saved_articles').insert(articleToRow(saved, userId))
+        if (error) console.error('Failed to persist saved article:', error.message, error.details)
+      })()
     }
   }, [userId])
 
@@ -192,7 +197,8 @@ export function useArticles(_categories: Category[], userId: string | null) {
     })
     if (userId) {
       setSupabaseSaved(prev => prev.filter(a => a.id !== articleId))
-      supabase.from('saved_articles').delete().eq('id', articleId).eq('user_id', userId).then()
+      supabase.from('saved_articles').delete().eq('id', articleId).eq('user_id', userId)
+        .then(({ error }) => { if (error) console.error('Failed to unsave article:', error.message) })
     }
   }, [userId])
 

@@ -58,6 +58,7 @@ async function fetchFeed(rssUrl: string, categoryId: string, feedName: string, s
 // We identify saved articles by (link, user_id) which are both plain text.
 function articleToRow(a: Article, userId: string) {
   return {
+    id: crypto.randomUUID(),   // generate a fresh UUID — avoids type conflicts with the PK column
     user_id: userId,
     title: a.title,
     description: a.description,

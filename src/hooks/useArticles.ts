@@ -24,8 +24,9 @@ function extractAudio(item: RSSItem): string | null {
   return null
 }
 
+// Use link as the canonical article id — it's always a plain URL (text), never a UUID
 function itemToArticle(item: RSSItem, categoryId: string, feedName: string, savedIds: Set<string>, readIds: Set<string>): Article {
-  const id = item.guid || item.link || `${categoryId}_${item.title}`
+  const id = item.link || item.guid || `${categoryId}_${item.title}`
   const audioUrl = extractAudio(item) ?? undefined
   return {
     id,
@@ -53,21 +54,38 @@ async function fetchFeed(rssUrl: string, categoryId: string, feedName: string, s
   return data.items.map(item => itemToArticle(item, categoryId, feedName, savedIds, readIds))
 }
 
+// id is intentionally omitted — let Supabase auto-generate the PK.
+// We identify saved articles by (link, user_id) which are both plain text.
 function articleToRow(a: Article, userId: string) {
   return {
-    id: a.id, user_id: userId, title: a.title, description: a.description,
-    link: a.link, pub_date: a.pubDate, thumbnail: a.thumbnail,
-    author: a.author, category_id: a.categoryId, feed_name: a.feedName,
+    user_id: userId,
+    title: a.title,
+    description: a.description,
+    link: a.link,
+    pub_date: a.pubDate,
+    thumbnail: a.thumbnail,
+    author: a.author,
+    category_id: a.categoryId,
+    feed_name: a.feedName,
     label_id: a.labelId ?? null,
   }
 }
 
+// Reconstruct article from DB row; use link as the article id so it matches
+// what itemToArticle produces (which also prefers link as id).
 function rowToArticle(r: any): Article {
   return {
-    id: r.id, title: r.title, description: r.description || '',
-    link: r.link, pubDate: r.pub_date || '', thumbnail: r.thumbnail || null,
-    author: r.author || '', categoryId: r.category_id || '',
-    feedName: r.feed_name || '', isRead: false, isSaved: true,
+    id: r.link || r.id,
+    title: r.title,
+    description: r.description || '',
+    link: r.link,
+    pubDate: r.pub_date || '',
+    thumbnail: r.thumbnail || null,
+    author: r.author || '',
+    categoryId: r.category_id || '',
+    feedName: r.feed_name || '',
+    isRead: false,
+    isSaved: true,
     labelId: r.label_id || undefined,
   }
 }
@@ -79,14 +97,14 @@ export function useArticles(_categories: Category[], userId: string | null) {
   const [supabaseSaved, setSupabaseSaved] = useState<Article[]>([])
   const cache = useRef<Record<string, CacheEntry>>({})
 
+  // savedIds is keyed by article.link (same as article.id after the itemToArticle change)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
-  // maps article id → labelId for quick lookup when decorating RSS articles
   const [savedLabelMap, setSavedLabelMap] = useState<Record<string, string | undefined>>({})
   const [readIds, setReadIds] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')) } catch { return new Set() }
   })
 
-  // Load saved IDs from Supabase on login
+  // Load saved articles from Supabase on login
   useEffect(() => {
     if (!userId) {
       setSavedIds(new Set())
@@ -97,10 +115,11 @@ export function useArticles(_categories: Category[], userId: string | null) {
     supabase.from('saved_articles').select('*').eq('user_id', userId).then(({ data, error }) => {
       if (error) { console.error('Failed to load saved articles:', error.message); return }
       const rows = data ?? []
-      setSavedIds(new Set(rows.map((r: any) => r.id)))
+      // Key by link — the stable text identifier we use for all DB operations
+      setSavedIds(new Set(rows.map((r: any) => r.link).filter(Boolean)))
       setSupabaseSaved(rows.map(rowToArticle))
       const labelMap: Record<string, string | undefined> = {}
-      rows.forEach((r: any) => { if (r.label_id) labelMap[r.id] = r.label_id })
+      rows.forEach((r: any) => { if (r.label_id && r.link) labelMap[r.link] = r.label_id })
       setSavedLabelMap(labelMap)
     })
   }, [userId])
@@ -160,6 +179,7 @@ export function useArticles(_categories: Category[], userId: string | null) {
   }, [])
 
   const saveArticle = useCallback((articleId: string, articleData: Article, labelId?: string) => {
+    const link = articleData.link
     setSavedIds(prev => new Set([...prev, articleId]))
     setSavedLabelMap(prev => ({ ...prev, [articleId]: labelId }))
     setArticlesByCategory(prev => {
@@ -173,17 +193,28 @@ export function useArticles(_categories: Category[], userId: string | null) {
     })
     if (userId) {
       const saved = { ...articleData, isSaved: true, labelId }
-      setSupabaseSaved(prev => [...prev.filter(a => a.id !== articleId), saved])
-      // Delete then insert — avoids needing an UPDATE RLS policy (upsert requires it)
+      setSupabaseSaved(prev => [...prev.filter(a => a.link !== link), saved])
+      // Delete existing row by link (text column, safe), then insert without id
+      // (letting Supabase auto-generate the UUID PK avoids UUID type conflicts)
       ;(async () => {
-        await supabase.from('saved_articles').delete().eq('id', articleId).eq('user_id', userId)
-        const { error } = await supabase.from('saved_articles').insert(articleToRow(saved, userId))
-        if (error) console.error('Failed to persist saved article:', error.message, error.details)
+        await supabase.from('saved_articles').delete().eq('link', link).eq('user_id', userId)
+        const { data, error } = await supabase
+          .from('saved_articles')
+          .insert(articleToRow(saved, userId))
+          .select()
+        if (error) {
+          console.error('Save failed — message:', error.message, '| details:', error.details, '| hint:', error.hint)
+        } else {
+          console.log('Article saved to Supabase:', data?.[0]?.link)
+        }
       })()
     }
   }, [userId])
 
   const unsaveArticle = useCallback((articleId: string) => {
+    // Find the link so we can delete by it (article.id === article.link after our change,
+    // but look it up defensively from supabaseSaved too)
+    const link = supabaseSaved.find(a => a.id === articleId)?.link ?? articleId
     setSavedIds(prev => { const n = new Set(prev); n.delete(articleId); return n })
     setSavedLabelMap(prev => { const n = { ...prev }; delete n[articleId]; return n })
     setArticlesByCategory(prev => {
@@ -197,10 +228,10 @@ export function useArticles(_categories: Category[], userId: string | null) {
     })
     if (userId) {
       setSupabaseSaved(prev => prev.filter(a => a.id !== articleId))
-      supabase.from('saved_articles').delete().eq('id', articleId).eq('user_id', userId)
-        .then(({ error }) => { if (error) console.error('Failed to unsave article:', error.message) })
+      supabase.from('saved_articles').delete().eq('link', link).eq('user_id', userId)
+        .then(({ error }) => { if (error) console.error('Unsave failed:', error.message) })
     }
-  }, [userId])
+  }, [userId, supabaseSaved])
 
   // Deletes old saved articles from Supabase DB (used when protectSaved is off)
   const purgeOldSaved = useCallback((days: number) => {
@@ -210,13 +241,13 @@ export function useArticles(_categories: Category[], userId: string | null) {
       try { return new Date(a.pubDate).getTime() < cutoff } catch { return false }
     })
     if (toDelete.length === 0) return
-    const deleteIds = toDelete.map(a => a.id)
-    supabase.from('saved_articles').delete().eq('user_id', userId).in('id', deleteIds).then()
-    setSupabaseSaved(prev => prev.filter(a => !deleteIds.includes(a.id)))
-    setSavedIds(prev => { const n = new Set(prev); deleteIds.forEach(id => n.delete(id)); return n })
+    const deleteLinks = toDelete.map(a => a.link).filter(Boolean)
+    supabase.from('saved_articles').delete().eq('user_id', userId).in('link', deleteLinks).then()
+    setSupabaseSaved(prev => prev.filter(a => !deleteLinks.includes(a.link)))
+    setSavedIds(prev => { const n = new Set(prev); deleteLinks.forEach(l => n.delete(l)); return n })
     setSavedLabelMap(prev => {
       const n = { ...prev }
-      deleteIds.forEach(id => delete n[id])
+      deleteLinks.forEach(l => delete n[l])
       return n
     })
   }, [userId, supabaseSaved])

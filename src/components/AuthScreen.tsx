@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Layers, Mail, Lock, Loader2 } from 'lucide-react'
+import { Mail, Lock, Loader2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export function AuthScreen() {
@@ -36,11 +36,8 @@ export function AuthScreen() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8">
         {/* Logo */}
-        <div className="flex items-center gap-2.5 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
-            <Layers size={18} className="text-white" />
-          </div>
-          <span className="font-bold text-slate-900 text-xl">NewsFlow</span>
+        <div className="flex items-center gap-3 mb-8">
+          <img src="/logo.svg" alt="The Loop" className="h-14 w-14 rounded-2xl" />
         </div>
 
         <h1 className="text-2xl font-bold text-slate-900 mb-1">

@@ -97,12 +97,8 @@ export function Sidebar({
     <aside className="w-64 flex-shrink-0 bg-white shadow-md flex flex-col h-full">
       {/* M3 Drawer headline */}
       <div className="px-5 py-5 flex-shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shadow-sm">
-            <Layers size={15} className="text-white" />
-          </div>
-          <span className="text-lg font-medium text-slate-900 tracking-tight">NewsFlow</span>
-        </div>
+        <img src="/logo.svg" alt="The Loop" className="h-10 w-10 rounded-xl" />
+
       </div>
 
       {/* Reading goal */}

@@ -67,7 +67,7 @@ function articleToRow(a: Article, userId: string) {
     author: a.author,
     category_id: a.categoryId,
     feed_name: a.feedName,
-    // label_id excluded until the column is added via Supabase migration
+    label_id: a.labelId ?? null,
   }
 }
 

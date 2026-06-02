@@ -5,6 +5,8 @@ import { COLOR_MAP } from '../defaultCategories'
 import { FILTER_COLOR_STYLES } from './KeywordFilterModal'
 import { ReadingGoalWidget } from './ReadingGoalWidget'
 import { PurgeControl } from './PurgeControl'
+import { DigestSettings } from './DigestSettings'
+import type { DigestPrefs } from '../hooks/useDigestPrefs'
 
 interface Props {
   categories: Category[]
@@ -34,6 +36,13 @@ interface Props {
   protectSaved: boolean
   onChangePurgeDays: (days: number) => void
   onToggleProtectSaved: () => void
+  digestPrefs: DigestPrefs | null
+  digestLoading: boolean
+  digestSaving: boolean
+  digestSending: boolean
+  digestSendResult: { ok: boolean; message: string } | null
+  onSaveDigestPrefs: (prefs: DigestPrefs) => void
+  onSendDigestNow: () => void
   userEmail?: string
   onSignOut: () => void
 }
@@ -45,6 +54,8 @@ export function Sidebar({
   labels, labelCounts, onAddLabel, onEditLabel, onDeleteLabel,
   todayCount, goal, streak, goalReached, justReached, onSetGoal,
   purgeDays, protectSaved, onChangePurgeDays, onToggleProtectSaved,
+  digestPrefs, digestLoading, digestSaving, digestSending, digestSendResult,
+  onSaveDigestPrefs, onSendDigestNow,
   userEmail, onSignOut,
 }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -277,9 +288,18 @@ export function Sidebar({
         </div>
       </nav>
 
-      {/* Footer: purge settings + sign out */}
+      {/* Footer: digest + purge settings + sign out */}
       <div className="px-3 py-3 border-t border-slate-100 flex-shrink-0 space-y-1">
-        <div className="px-4 py-1.5">
+        <div className="px-4 py-1.5 flex items-center gap-2 flex-wrap">
+          <DigestSettings
+            prefs={digestPrefs}
+            loading={digestLoading}
+            saving={digestSaving}
+            sending={digestSending}
+            sendResult={digestSendResult}
+            onSave={onSaveDigestPrefs}
+            onSendNow={onSendDigestNow}
+          />
           <PurgeControl
             purgeDays={purgeDays}
             protectSaved={protectSaved}

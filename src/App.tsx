@@ -6,6 +6,7 @@ import { useKeywordFilters } from './hooks/useKeywordFilters'
 import { useSaveLabels } from './hooks/useSaveLabels'
 import { usePodcastPlayer } from './hooks/usePodcastPlayer'
 import { useReadingGoals } from './hooks/useReadingGoals'
+import { useDigestPrefs } from './hooks/useDigestPrefs'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { ArticleFeed } from './components/ArticleFeed'
@@ -32,6 +33,7 @@ export default function App() {
   const { articlesByCategory, allArticles, savedArticles, loading, errors, fetchCategory, markRead, saveArticle, unsaveArticle, purgeOldSaved } = useArticles(categories, userId)
   const podcastPlayer = usePodcastPlayer()
   const { todayCount, goal, streak, goalReached, justReached, recordRead, setGoal } = useReadingGoals()
+  const { prefs: digestPrefs, loading: digestLoading, saving: digestSaving, sending: digestSending, sendResult: digestSendResult, savePrefs: saveDigestPrefs, sendNow: sendDigestNow } = useDigestPrefs(userId)
 
   const [selectedId, setSelectedId] = useState<string | null>(categories[0]?.id ?? null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -210,6 +212,13 @@ export default function App() {
           protectSaved={protectSaved}
           onChangePurgeDays={setPurgeDays}
           onToggleProtectSaved={() => setProtectSaved(v => !v)}
+          digestPrefs={digestPrefs}
+          digestLoading={digestLoading}
+          digestSaving={digestSaving}
+          digestSending={digestSending}
+          digestSendResult={digestSendResult}
+          onSaveDigestPrefs={saveDigestPrefs}
+          onSendDigestNow={sendDigestNow}
           userEmail={user.email}
           onSignOut={signOut}
         />

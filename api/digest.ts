@@ -2,10 +2,15 @@ import Anthropic from '@anthropic-ai/sdk'
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 
+// Edge runtime gives 25 s on hobby vs 10 s for Node.js serverless —
+// enough to fetch feeds + call Claude + send email.
+export const config = { runtime: 'edge' }
+
 // Clients are initialised lazily inside the handler so a missing env var
 // returns a clean JSON error rather than crashing the module at load time.
 
 const RSS2JSON = 'https://api.rss2json.com/v1/api.json'
+const FEED_TIMEOUT_MS = 5_000 // abort slow feeds quickly
 
 const REQUIRED_ENV = [
   'VITE_SUPABASE_URL',
@@ -48,7 +53,9 @@ async function fetchArticlesForUser(userId: string, supabase: ReturnType<typeof 
       const feeds = (cat.feeds as Array<{ url: string; name: string }>) ?? []
       return feeds.map(async (feed) => {
         try {
-          const res = await fetch(`${RSS2JSON}?rss_url=${encodeURIComponent(feed.url)}`)
+          const res = await fetch(`${RSS2JSON}?rss_url=${encodeURIComponent(feed.url)}`, {
+            signal: AbortSignal.timeout(FEED_TIMEOUT_MS),
+          })
           if (!res.ok) return
           const data = await res.json()
           if (data.status !== 'ok') return

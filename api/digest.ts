@@ -2,18 +2,17 @@ import Anthropic from '@anthropic-ai/sdk'
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 
-// ── Clients ───────────────────────────────────────────────────────────────────
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const resend = new Resend(process.env.RESEND_API_KEY)
-
-// Service-role client — bypasses RLS for server-side reads
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Clients are initialised lazily inside the handler so a missing env var
+// returns a clean JSON error rather than crashing the module at load time.
 
 const RSS2JSON = 'https://api.rss2json.com/v1/api.json'
+
+const REQUIRED_ENV = [
+  'VITE_SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'ANTHROPIC_API_KEY',
+  'RESEND_API_KEY',
+] as const
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,7 +31,7 @@ interface DigestArticle extends RawArticle {
 
 // ── RSS fetching ──────────────────────────────────────────────────────────────
 
-async function fetchArticlesForUser(userId: string): Promise<RawArticle[]> {
+async function fetchArticlesForUser(userId: string, supabase: ReturnType<typeof createClient>): Promise<RawArticle[]> {
   const { data: categories } = await supabase
     .from('categories')
     .select('id, name, feeds')
@@ -86,7 +85,7 @@ function stripHtml(html: string): string {
 
 // ── Claude: pick top 10 + summarise ──────────────────────────────────────────
 
-async function selectAndSummarize(articles: RawArticle[]): Promise<DigestArticle[]> {
+async function selectAndSummarize(articles: RawArticle[], anthropic: Anthropic): Promise<DigestArticle[]> {
   if (articles.length === 0) return []
 
   // Cap at 60 articles to stay within token limits
@@ -216,6 +215,20 @@ function buildEmail(articles: DigestArticle[], date: string): string {
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export default async function handler(req: Request): Promise<Response> {
+  // ── Env var preflight ──────────────────────────────────────────────────────
+  const missing = REQUIRED_ENV.filter((k) => !process.env[k])
+  if (missing.length) {
+    return new Response(
+      JSON.stringify({ error: `Missing environment variables: ${missing.join(', ')}. Add them in Vercel → Settings → Environment Variables, then redeploy.` }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // Initialise clients only after env vars are confirmed present
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const supabase = createClient(process.env.VITE_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
   const authHeader = req.headers.get('authorization') ?? ''
   const cronSecret = process.env.CRON_SECRET
 
@@ -267,10 +280,10 @@ export default async function handler(req: Request): Promise<Response> {
 
   for (const pref of prefs) {
     try {
-      const articles = await fetchArticlesForUser(pref.user_id)
+      const articles = await fetchArticlesForUser(pref.user_id, supabase)
       if (articles.length === 0) continue
 
-      const top10 = await selectAndSummarize(articles)
+      const top10 = await selectAndSummarize(articles, anthropic)
       if (top10.length === 0) continue
 
       const html = buildEmail(top10, date)

@@ -57,11 +57,21 @@ export function useDigestPrefs(userId: string | null) {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
-      const body = await res.json()
-      if (!res.ok || body.errors?.length) {
-        setSendResult({ ok: false, message: body.errors?.[0] ?? 'Send failed' })
+
+      // Always read as text first — a missing env var causes a non-JSON crash response
+      const text = await res.text()
+      let body: { sent?: number; errors?: string[]; error?: string; message?: string } = {}
+      try { body = JSON.parse(text) } catch { /* leave body empty */ }
+
+      if (!res.ok) {
+        const detail = body.error ?? text.slice(0, 120)
+        setSendResult({ ok: false, message: detail || `Server error (${res.status})` })
+      } else if (body.errors?.length) {
+        setSendResult({ ok: false, message: body.errors[0] })
+      } else if (body.sent === 0) {
+        setSendResult({ ok: false, message: 'No digest prefs found. Save your settings first.' })
       } else {
-        setSendResult({ ok: true, message: 'Digest sent! Check your inbox.' })
+        setSendResult({ ok: true, message: 'Digest sent — check your inbox!' })
       }
     } catch (e) {
       setSendResult({ ok: false, message: e instanceof Error ? e.message : 'Unknown error' })

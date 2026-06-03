@@ -5,6 +5,7 @@ export interface DigestPrefs {
   digestEmail: string
   enabled: boolean
   sendHour: number // 0–23 UTC
+  categoryIds: string[] | null // null = all categories
 }
 
 export function useDigestPrefs(userId: string | null) {
@@ -19,12 +20,12 @@ export function useDigestPrefs(userId: string | null) {
     setLoading(true)
     supabase
       .from('digest_prefs')
-      .select('digest_email, enabled, send_hour')
+      .select('digest_email, enabled, send_hour, category_ids')
       .eq('user_id', userId)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
-          setPrefs({ digestEmail: data.digest_email, enabled: data.enabled, sendHour: data.send_hour })
+          setPrefs({ digestEmail: data.digest_email, enabled: data.enabled, sendHour: data.send_hour, categoryIds: data.category_ids ?? null })
         }
         setLoading(false)
       })
@@ -39,6 +40,7 @@ export function useDigestPrefs(userId: string | null) {
         digest_email: updates.digestEmail,
         enabled: updates.enabled,
         send_hour: updates.sendHour,
+        category_ids: updates.categoryIds ?? null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id' }

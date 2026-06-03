@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Mail, ChevronDown, Send, Check, AlertCircle, Loader2 } from 'lucide-react'
 import type { DigestPrefs } from '../hooks/useDigestPrefs'
+import type { Category } from '../types'
 
 const SEND_HOURS = [
   { label: '6 am UTC', value: 6 },
@@ -16,15 +17,17 @@ interface Props {
   saving: boolean
   sending: boolean
   sendResult: { ok: boolean; message: string } | null
+  categories: Category[]
   onSave: (prefs: DigestPrefs) => void
   onSendNow: () => void
 }
 
-export function DigestSettings({ prefs, loading, saving, sending, sendResult, onSave, onSendNow }: Props) {
+export function DigestSettings({ prefs, loading, saving, sending, sendResult, categories, onSave, onSendNow }: Props) {
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [enabled, setEnabled] = useState(false)
   const [sendHour, setSendHour] = useState(7)
+  const [categoryIds, setCategoryIds] = useState<string[] | null>(null) // null = all
   const [dirty, setDirty] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -34,6 +37,7 @@ export function DigestSettings({ prefs, loading, saving, sending, sendResult, on
       setEmail(prefs.digestEmail)
       setEnabled(prefs.enabled)
       setSendHour(prefs.sendHour)
+      setCategoryIds(prefs.categoryIds)
     }
     setDirty(false)
   }, [prefs])
@@ -48,20 +52,30 @@ export function DigestSettings({ prefs, loading, saving, sending, sendResult, on
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  const handleChange = <K extends keyof DigestPrefs>(field: K, value: DigestPrefs[K]) => {
-    if (field === 'digestEmail') setEmail(value as string)
-    if (field === 'enabled') setEnabled(value as boolean)
-    if (field === 'sendHour') setSendHour(value as number)
-    setDirty(true)
+  const mark = () => setDirty(true)
+
+  const toggleCategory = (id: string) => {
+    setCategoryIds(prev => {
+      const current = prev ?? categories.map(c => c.id) // expand "all" before toggling
+      const next = current.includes(id) ? current.filter(x => x !== id) : [...current, id]
+      // If all categories selected, collapse back to null (= all)
+      const result = next.length === categories.length ? null : next.length === 0 ? [id] : next
+      return result
+    })
+    mark()
   }
 
+  const selectAll = () => { setCategoryIds(null); mark() }
+
   const handleSave = () => {
-    onSave({ digestEmail: email, enabled, sendHour })
+    onSave({ digestEmail: email, enabled, sendHour, categoryIds })
     setDirty(false)
   }
 
   const isActive = prefs?.enabled ?? false
   const sendHourLabel = SEND_HOURS.find(h => h.value === sendHour)?.label ?? `${sendHour}:00 UTC`
+  const allSelected = categoryIds === null
+  const selectedCount = allSelected ? categories.length : (categoryIds?.length ?? 0)
 
   return (
     <div ref={ref} className="relative">
@@ -86,9 +100,8 @@ export function DigestSettings({ prefs, loading, saving, sending, sendResult, on
               <p className="text-sm font-medium text-slate-900">Daily Digest</p>
               <p className="text-xs text-slate-400 mt-0.5">Top 10 stories, summarised by AI</p>
             </div>
-            {/* Enable toggle */}
             <button
-              onClick={() => handleChange('enabled', !enabled)}
+              onClick={() => { setEnabled(v => !v); mark() }}
               className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 flex-shrink-0 ${
                 enabled ? 'bg-blue-500' : 'bg-slate-200'
               }`}
@@ -104,31 +117,71 @@ export function DigestSettings({ prefs, loading, saving, sending, sendResult, on
               <Loader2 size={18} className="animate-spin text-slate-300" />
             </div>
           ) : (
-            <div className="px-4 py-3 space-y-3">
+            <div className="px-4 py-3 space-y-3 max-h-[70vh] overflow-y-auto">
               {/* Email address */}
               <div>
-                <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-widest mb-1.5">
-                  Send to
-                </label>
+                <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-widest mb-1.5">Send to</label>
                 <input
                   type="email"
                   value={email}
-                  onChange={e => handleChange('digestEmail', e.target.value)}
+                  onChange={e => { setEmail(e.target.value); mark() }}
                   placeholder="you@example.com"
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 focus:bg-white transition-all"
                 />
               </div>
 
+              {/* Categories */}
+              {categories.length > 0 && (
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-widest mb-1.5">
+                    Categories
+                    <span className="ml-1 normal-case font-normal text-slate-300">
+                      ({selectedCount} of {categories.length})
+                    </span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={selectAll}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        allSelected
+                          ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {allSelected && <Check size={10} className="inline mr-1" />}
+                      All
+                    </button>
+                    {categories.map(cat => {
+                      const selected = allSelected || (categoryIds?.includes(cat.id) ?? false)
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => toggleCategory(cat.id)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                            selected && !allSelected
+                              ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                              : allSelected
+                              ? 'bg-slate-100 text-slate-400'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {selected && !allSelected && <Check size={10} className="inline mr-1" />}
+                          {cat.icon} {cat.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Send time */}
               <div>
-                <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-widest mb-1.5">
-                  Send time
-                </label>
+                <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-widest mb-1.5">Send time</label>
                 <div className="flex flex-wrap gap-1.5">
                   {SEND_HOURS.map(h => (
                     <button
                       key={h.value}
-                      onClick={() => handleChange('sendHour', h.value)}
+                      onClick={() => { setSendHour(h.value); mark() }}
                       className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                         sendHour === h.value
                           ? 'bg-blue-100 text-blue-700 border border-blue-200'

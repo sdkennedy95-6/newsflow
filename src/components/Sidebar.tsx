@@ -297,6 +297,7 @@ export function Sidebar({
             saving={digestSaving}
             sending={digestSending}
             sendResult={digestSendResult}
+            categories={categories}
             onSave={onSaveDigestPrefs}
             onSendNow={onSendDigestNow}
           />

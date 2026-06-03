@@ -64,12 +64,12 @@ function stripHtml(html: string): string {
 
 async function fetchArticlesForUser(
   userId: string,
-  supabase: ReturnType<typeof createClient>
+  supabase: ReturnType<typeof createClient>,
+  categoryIds: string[] | null
 ): Promise<RawArticle[]> {
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('id, name, feeds')
-    .eq('user_id', userId)
+  let q = supabase.from('categories').select('id, name, feeds').eq('user_id', userId)
+  if (categoryIds?.length) q = q.in('id', categoryIds)
+  const { data: categories } = await q
 
   if (!categories?.length) return []
 
@@ -266,7 +266,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   for (const pref of prefs) {
     try {
-      const articles = await fetchArticlesForUser(pref.user_id, supabase)
+      const articles = await fetchArticlesForUser(pref.user_id, supabase, pref.category_ids ?? null)
       if (articles.length === 0) { errors.push('No articles found in the last 48 h — check your feeds'); continue }
 
       const top10 = await selectAndSummarize(articles, anthropicKey)

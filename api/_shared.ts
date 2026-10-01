@@ -10,8 +10,8 @@ export interface FeedDef {
   category: string
 }
 
-// Mirrors the feeds in src/defaultCategories.ts — the source of truth for
-// what "default feeds" means to the app. Keep in sync manually.
+// Fallback used when LOOP_OWNER_USER_ID / Supabase env vars are not set.
+// Prefer setting LOOP_OWNER_USER_ID so the API always reflects your live feeds.
 export const DEFAULT_FEEDS: FeedDef[] = [
   { url: 'https://techcrunch.com/feed/', name: 'TechCrunch', category: 'Technology' },
   { url: 'https://feeds.arstechnica.com/arstechnica/index', name: 'Ars Technica', category: 'Technology' },
@@ -19,19 +19,38 @@ export const DEFAULT_FEEDS: FeedDef[] = [
   { url: 'https://medcitynews.com/feed/', name: 'MedCity News', category: 'Health Tech' },
   { url: 'https://www.mobihealthnews.com/rss.xml', name: 'MobiHealthNews', category: 'Health Tech' },
   { url: 'https://www.healthcareitnews.com/rss.xml', name: 'Healthcare IT News', category: 'Health Tech' },
-  { url: 'https://www.espn.com/espn/rss/news', name: 'ESPN', category: 'Sports' },
-  { url: 'http://feeds.bbci.co.uk/sport/rss.xml', name: 'BBC Sport', category: 'Sports' },
-  { url: 'https://sports.yahoo.com/rss/', name: 'Yahoo Sports', category: 'Sports' },
-  { url: 'https://feeds.npr.org/1014/rss.xml', name: 'NPR Politics', category: 'Politics' },
-  { url: 'https://rss.politico.com/politics-news.xml', name: 'Politico', category: 'Politics' },
-  { url: 'https://thehill.com/rss/syndicator/19110', name: 'The Hill', category: 'Politics' },
-  { url: 'https://www.cnbc.com/id/10001147/device/rss/rss.html', name: 'CNBC', category: 'Business' },
-  { url: 'https://feeds.marketwatch.com/marketwatch/topstories/', name: 'MarketWatch', category: 'Business' },
-  { url: 'https://fortune.com/feed/', name: 'Fortune', category: 'Business' },
-  { url: 'https://www.sciencedaily.com/rss/all.xml', name: 'Science Daily', category: 'Science' },
-  { url: 'https://www.nasa.gov/rss/dyn/breaking_news.rss', name: 'NASA', category: 'Science' },
-  { url: 'https://www.newscientist.com/feed/home/', name: 'New Scientist', category: 'Science' },
 ]
+
+// Fetches the owner's configured categories from Supabase via the REST API
+// (service role bypasses RLS). Returns DEFAULT_FEEDS if env vars are missing.
+async function fetchOwnerFeeds(): Promise<FeedDef[]> {
+  const ownerUserId = process.env.LOOP_OWNER_USER_ID
+  const supabaseUrl = process.env.VITE_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!ownerUserId || !supabaseUrl || !serviceKey) return DEFAULT_FEEDS
+
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/categories?user_id=eq.${encodeURIComponent(ownerUserId)}&select=name,feeds`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        signal: AbortSignal.timeout(5_000),
+      }
+    )
+    if (!res.ok) return DEFAULT_FEEDS
+    const rows: Array<{ name: string; feeds: Array<{ url: string; name: string }> }> = await res.json()
+    if (!rows?.length) return DEFAULT_FEEDS
+    return rows.flatMap(cat =>
+      (cat.feeds ?? []).map(f => ({ url: f.url, name: f.name, category: cat.name }))
+    )
+  } catch {
+    return DEFAULT_FEEDS
+  }
+}
 
 export interface ArticleOut {
   title: string
@@ -116,7 +135,8 @@ export function checkAuth(req: Request): Response | null {
 }
 
 export async function fetchAllArticles(): Promise<ArticleOut[]> {
-  const results = await Promise.allSettled(DEFAULT_FEEDS.map(fetchFeed))
+  const feeds = await fetchOwnerFeeds()
+  const results = await Promise.allSettled(feeds.map(fetchFeed))
   const seen = new Set<string>()
   return results
     .flatMap(r => (r.status === 'fulfilled' ? r.value : []))

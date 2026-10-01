@@ -26,11 +26,19 @@ export default async function handler(req: Request): Promise<Response> {
 
   const sinceParam = url.searchParams.get('since')
   const sinceMs = sinceParam ? new Date(sinceParam).getTime() : null
+  const sourceParam = url.searchParams.get('source')?.toLowerCase() ?? null
+  const categoryParam = url.searchParams.get('category')?.toLowerCase() ?? null
 
   let articles = await fetchAllArticles()
 
   if (sinceMs !== null && !isNaN(sinceMs)) {
     articles = articles.filter(a => new Date(a.publishedAt).getTime() > sinceMs)
+  }
+  if (sourceParam) {
+    articles = articles.filter(a => a.source.toLowerCase().includes(sourceParam))
+  }
+  if (categoryParam) {
+    articles = articles.filter(a => a.category.toLowerCase().includes(categoryParam))
   }
 
   articles = articles.slice(0, limit)

@@ -1,6 +1,9 @@
 // Shared utilities for public API endpoints (articles + digest page).
 // Prefixed with _ so Vercel does not treat this as a route.
 
+// Edge runtime has process.env but @types/node is not in scope here.
+declare const process: { env: Record<string, string | undefined> }
+
 export interface FeedDef {
   url: string
   name: string

@@ -5,6 +5,8 @@ import { COLOR_MAP } from '../defaultCategories'
 import { FILTER_COLOR_STYLES } from './KeywordFilterModal'
 import { ReadingGoalWidget } from './ReadingGoalWidget'
 import { PurgeControl } from './PurgeControl'
+import { DigestSettings } from './DigestSettings'
+import type { DigestPrefs } from '../hooks/useDigestPrefs'
 
 interface Props {
   categories: Category[]
@@ -34,6 +36,13 @@ interface Props {
   protectSaved: boolean
   onChangePurgeDays: (days: number) => void
   onToggleProtectSaved: () => void
+  digestPrefs: DigestPrefs | null
+  digestLoading: boolean
+  digestSaving: boolean
+  digestSending: boolean
+  digestSendResult: { ok: boolean; message: string } | null
+  onSaveDigestPrefs: (prefs: DigestPrefs) => void
+  onSendDigestNow: () => void
   userEmail?: string
   onSignOut: () => void
 }
@@ -45,6 +54,8 @@ export function Sidebar({
   labels, labelCounts, onAddLabel, onEditLabel, onDeleteLabel,
   todayCount, goal, streak, goalReached, justReached, onSetGoal,
   purgeDays, protectSaved, onChangePurgeDays, onToggleProtectSaved,
+  digestPrefs, digestLoading, digestSaving, digestSending, digestSendResult,
+  onSaveDigestPrefs, onSendDigestNow,
   userEmail, onSignOut,
 }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -142,9 +153,19 @@ export function Sidebar({
                     {count > 0 && (
                       <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">{count}</span>
                     )}
+                    {/* Mobile-only actions */}
+                    <span
+                      onClick={e => { e.stopPropagation(); onEditLabel(label) }}
+                      className="lg:hidden p-1 rounded-full text-slate-300 active:text-blue-600"
+                    ><Pencil size={11} /></span>
+                    <span
+                      onClick={e => { e.stopPropagation(); handleDelete(label.id, onDeleteLabel) }}
+                      className={`lg:hidden p-1 rounded-full transition-colors ${confirmDelete === label.id ? 'text-red-500' : 'text-slate-300 active:text-red-500'}`}
+                    ><Trash2 size={11} /></span>
                   </button>
+                  {/* Desktop hover actions */}
                   {isHovered && (
-                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-full shadow border border-slate-100 px-1 py-0.5 z-10">
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 hidden lg:flex items-center gap-0.5 bg-white rounded-full shadow border border-slate-100 px-1 py-0.5 z-10">
                       <button onClick={e => { e.stopPropagation(); onEditLabel(label) }} className="p-1 rounded-full text-slate-400 hover:text-blue-600 transition-colors" title="Edit"><Pencil size={11} /></button>
                       <button onClick={e => { e.stopPropagation(); handleDelete(label.id, onDeleteLabel) }} className={`p-1 rounded-full transition-colors ${confirmDelete === label.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'}`} title={confirmDelete === label.id ? 'Confirm' : 'Delete'}><Trash2 size={11} /></button>
                     </div>
@@ -181,9 +202,19 @@ export function Sidebar({
                     : <span className={`w-2 h-2 rounded-full flex-shrink-0 ${colors.dot}`} />
                   }
                   <span className="flex-1 text-left truncate">{cat.icon} {cat.name}</span>
+                  {/* Mobile-only actions */}
+                  <span
+                    onClick={e => { e.stopPropagation(); onEditCategory(cat) }}
+                    className="lg:hidden p-1 rounded-full text-slate-300 active:text-blue-600"
+                  ><Pencil size={13} /></span>
+                  <span
+                    onClick={e => { e.stopPropagation(); handleDelete(cat.id, onDeleteCategory) }}
+                    className={`lg:hidden p-1 rounded-full transition-colors ${confirmDelete === cat.id ? 'text-red-500' : 'text-slate-300 active:text-red-500'}`}
+                  ><Trash2 size={13} /></span>
                 </button>
+                {/* Desktop hover actions */}
                 {isHovered && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-full shadow border border-slate-100 px-1 py-0.5 z-10">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden lg:flex items-center gap-0.5 bg-white rounded-full shadow border border-slate-100 px-1 py-0.5 z-10">
                     <button
                       onClick={e => { e.stopPropagation(); onReorderCategory(cat.id, 'up') }}
                       disabled={idx === 0}
@@ -229,9 +260,19 @@ export function Sidebar({
                     : <span className={`w-2 h-2 rounded-full flex-shrink-0 ${styles.dot}`} />
                   }
                   <span className="flex-1 text-left truncate">{kf.name}</span>
+                  {/* Mobile-only actions */}
+                  <span
+                    onClick={e => { e.stopPropagation(); onEditKeywordFilter(kf) }}
+                    className="lg:hidden p-1 rounded-full text-slate-300 active:text-blue-600"
+                  ><Pencil size={13} /></span>
+                  <span
+                    onClick={e => { e.stopPropagation(); handleDelete(kf.id, onDeleteKeywordFilter) }}
+                    className={`lg:hidden p-1 rounded-full transition-colors ${confirmDelete === kf.id ? 'text-red-500' : 'text-slate-300 active:text-red-500'}`}
+                  ><Trash2 size={13} /></span>
                 </button>
+                {/* Desktop hover actions */}
                 {isHovered && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 bg-white rounded-full shadow border border-slate-100 px-1 py-0.5 z-10">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden lg:flex items-center gap-0.5 bg-white rounded-full shadow border border-slate-100 px-1 py-0.5 z-10">
                     <button onClick={e => { e.stopPropagation(); onEditKeywordFilter(kf) }} className="p-1 rounded-full text-slate-400 hover:text-blue-600 transition-colors" title="Edit"><Pencil size={12} /></button>
                     <button onClick={e => { e.stopPropagation(); handleDelete(kf.id, onDeleteKeywordFilter) }} className={`p-1 rounded-full transition-colors ${confirmDelete === kf.id ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-red-500'}`} title={confirmDelete === kf.id ? 'Confirm' : 'Delete'}><Trash2 size={12} /></button>
                   </div>
@@ -247,9 +288,19 @@ export function Sidebar({
         </div>
       </nav>
 
-      {/* Footer: purge settings + sign out */}
+      {/* Footer: digest + purge settings + sign out */}
       <div className="px-3 py-3 border-t border-slate-100 flex-shrink-0 space-y-1">
-        <div className="px-4 py-1.5">
+        <div className="px-4 py-1.5 flex items-center gap-2 flex-wrap">
+          <DigestSettings
+            prefs={digestPrefs}
+            loading={digestLoading}
+            saving={digestSaving}
+            sending={digestSending}
+            sendResult={digestSendResult}
+            categories={categories}
+            onSave={onSaveDigestPrefs}
+            onSendNow={onSendDigestNow}
+          />
           <PurgeControl
             purgeDays={purgeDays}
             protectSaved={protectSaved}

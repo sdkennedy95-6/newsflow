@@ -61,6 +61,9 @@ export interface ArticleOut {
   summary: string | null
 }
 
+export const DEFAULT_LIMIT = 50
+export const MAX_LIMIT = 500
+
 const RSS2JSON = 'https://api.rss2json.com/v1/api.json'
 const FEED_TIMEOUT_MS = 5_000
 
@@ -134,6 +137,15 @@ export function checkAuth(req: Request): Response | null {
   })
 }
 
+// Stable sort: newest first, then URL ascending as tiebreaker.
+// The tiebreaker ensures consistent pagination across requests.
+export function compareArticles(a: ArticleOut, b: ArticleOut): number {
+  const ta = new Date(a.publishedAt).getTime()
+  const tb = new Date(b.publishedAt).getTime()
+  if (ta !== tb) return tb - ta
+  return a.url < b.url ? -1 : a.url > b.url ? 1 : 0
+}
+
 export async function fetchAllArticles(): Promise<ArticleOut[]> {
   const feeds = await fetchOwnerFeeds()
   const results = await Promise.allSettled(feeds.map(fetchFeed))
@@ -145,5 +157,97 @@ export async function fetchAllArticles(): Promise<ArticleOut[]> {
       seen.add(a.url)
       return true
     })
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    .sort(compareArticles)
+}
+
+// ── Filtering ─────────────────────────────────────────────────────────────────
+
+// Splits comma-separated and repeated query param values, lowercases each.
+// parseMultiParam(['HIT Consultant,Health API Guy', 'MedCity']) →
+//   ['hit consultant', 'health api guy', 'medcity']
+export function parseMultiParam(values: string[]): string[] {
+  return values
+    .flatMap(v => v.split(','))
+    .map(v => v.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+export function clampLimit(raw: string | null): number {
+  const n = parseInt(raw ?? '', 10)
+  return Math.min(Math.max(1, isNaN(n) ? DEFAULT_LIMIT : n), MAX_LIMIT)
+}
+
+export interface FilterOpts {
+  sources: string[]      // lowercased substrings; empty = no filter
+  categories: string[]   // lowercased substrings; empty = no filter
+  sinceMs: number | null // exclusive lower bound on publishedAt
+}
+
+// Apply all filters before any limiting or pagination.
+export function applyFilters(articles: ArticleOut[], opts: FilterOpts): ArticleOut[] {
+  return articles.filter(a => {
+    if (opts.sinceMs !== null && new Date(a.publishedAt).getTime() <= opts.sinceMs) return false
+    if (opts.sources.length && !opts.sources.some(s => a.source.toLowerCase().includes(s))) return false
+    if (opts.categories.length && !opts.categories.some(c => a.category.toLowerCase().includes(c))) return false
+    return true
+  })
+}
+
+// ── Cursor-based pagination ───────────────────────────────────────────────────
+
+// Cursor encodes the last item's (publishedAt ms, url) as URL-safe base64 JSON.
+export function encodeCursor(a: ArticleOut): string {
+  const raw = JSON.stringify({ t: new Date(a.publishedAt).getTime(), u: a.url })
+  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+export function decodeCursor(cursor: string): { t: number; u: string } | null {
+  try {
+    const padded = cursor.replace(/-/g, '+').replace(/_/g, '/')
+    const rem = padded.length % 4
+    const b64 = rem ? padded + '='.repeat(4 - rem) : padded
+    const obj = JSON.parse(atob(b64)) as unknown
+    if (
+      typeof obj === 'object' && obj !== null &&
+      typeof (obj as Record<string, unknown>).t === 'number' &&
+      typeof (obj as Record<string, unknown>).u === 'string'
+    ) {
+      return obj as { t: number; u: string }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+// Slice one page from a pre-filtered, sorted article list.
+// articles must already be sorted by compareArticles (newest first, url ascending tiebreak).
+export function paginateArticles(
+  articles: ArticleOut[],
+  cursor: string | null,
+  limit: number
+): { page: ArticleOut[]; nextCursor: string | null; total: number } {
+  const total = articles.length
+  let startIdx = 0
+
+  if (cursor) {
+    const decoded = decodeCursor(cursor)
+    if (decoded) {
+      // Find first article that sorts after the cursor position.
+      const idx = articles.findIndex(a => {
+        const t = new Date(a.publishedAt).getTime()
+        if (t < decoded.t) return true
+        if (t === decoded.t && a.url > decoded.u) return true
+        return false
+      })
+      startIdx = idx === -1 ? total : idx
+    }
+    // Invalid cursor → fall back to first page silently
+  }
+
+  const page = articles.slice(startIdx, startIdx + limit)
+  const hasMore = startIdx + limit < total
+  const nextCursor = page.length > 0 && hasMore ? encodeCursor(page[page.length - 1]) : null
+
+  return { page, nextCursor, total }
 }

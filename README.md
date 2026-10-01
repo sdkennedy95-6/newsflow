@@ -14,27 +14,55 @@ GET /api/articles?limit=20&since=2026-10-01T00:00:00Z
 
 | Param | Default | Max | Description |
 |-------|---------|-----|-------------|
-| `limit` | 50 | 100 | Max articles to return |
-| `since` | — | — | ISO 8601 date; only articles published after this time |
-| `source` | — | — | Case-insensitive substring match on feed name (e.g. `MedCity`) |
-| `category` | — | — | Case-insensitive substring match on category name (e.g. `health`) |
+| `limit` | 50 | 500 | Max articles to return |
+| `since` | — | — | ISO 8601 date; only articles published **after** this time |
+| `source` | — | — | Case-insensitive substring match on feed name. Comma-separated or repeated for OR logic: `?source=HIT%20Consultant,Health%20API%20Guy` |
+| `category` | — | — | Case-insensitive substring match on category name. Same multi-value syntax as `source`. |
+| `paginate` | — | — | Set to any value to enable cursor pagination (see below) |
+| `cursor` | — | — | Opaque cursor from a previous paginated response |
 
-**Response** (`application/json`, `s-maxage=300`):
+All filters combine with AND. `source` values combine with OR. `category` values combine with OR.
+
+**Legacy response** (default — backward compatible):
+```json
+{ "articles": [...], "count": 50 }
+```
+
+**Paginated response** (add `?paginate=1`):
 ```json
 {
-  "articles": [
-    {
-      "title": "Article headline",
-      "source": "MedCity News",
-      "category": "Health Tech",
-      "url": "https://...",
-      "publishedAt": "2026-10-01T09:00:00.000Z",
-      "summary": "First 300 chars of excerpt, or null"
-    }
-  ],
-  "count": 1
+  "articles": [...],
+  "nextCursor": "<opaque string, or null on last page>",
+  "total": 312
 }
 ```
+
+Articles are ordered newest-first with a stable URL tiebreaker, so pages
+never duplicate or skip items.
+
+### Example URLs
+
+```bash
+# All health tech articles, up to 500
+curl "https://newsfeed-app-phi.vercel.app/api/articles?category=health%20tech&limit=500"
+
+# Specific sources, comma-separated
+curl "https://newsfeed-app-phi.vercel.app/api/articles?source=HIT%20Consultant,Health%20Tech%20Nerds"
+
+# Repeated source params (same result)
+curl "https://newsfeed-app-phi.vercel.app/api/articles?source=HIT+Consultant&source=Health+Tech+Nerds"
+
+# Health tech since a date
+curl "https://newsfeed-app-phi.vercel.app/api/articles?category=health%20tech&since=2026-09-30T00:00:00Z&limit=500"
+
+# First paginated page
+curl "https://newsfeed-app-phi.vercel.app/api/articles?paginate=1&limit=50"
+
+# Next page (use nextCursor from previous response)
+curl "https://newsfeed-app-phi.vercel.app/api/articles?paginate=1&limit=50&cursor=<nextCursor>"
+```
+
+---
 
 ### `GET /digest`
 

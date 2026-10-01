@@ -1,4 +1,4 @@
-import { checkAuth, fetchAllArticles } from './_shared'
+import { checkAuth, fetchAllArticles } from './_shared.js'
 
 export const config = { runtime: 'edge' }
 

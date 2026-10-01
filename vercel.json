@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/digest", "destination": "/api/digest-page" },
     { "source": "/api/feedly/:path*", "destination": "https://cloud.feedly.com/v3/:path*" }
   ],
   "crons": [

@@ -3,7 +3,7 @@ import type { Article, Category, RSSResponse, RSSItem } from '../types'
 import { supabase } from '../lib/supabase'
 
 const READ_KEY = 'newsfeed_read'
-const RSS2JSON = 'https://api.rss2json.com/v1/api.json'
+const RSS2JSON = '/api/rss-proxy'
 const CACHE_TTL = 5 * 60 * 1000
 
 interface CacheEntry { articles: Article[]; fetchedAt: number }

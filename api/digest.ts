@@ -1,9 +1,12 @@
 // No SDK imports — use direct fetch calls so this runs on Edge runtime.
 // Edge runtime gives 25 s on hobby vs 10 s for Node.js serverless.
 import { Resend } from 'resend'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export const config = { runtime: 'edge' }
+
+// Edge runtime has process.env but @types/node is not in scope here.
+declare const process: { env: Record<string, string | undefined> }
 
 const RSS2JSON = 'https://api.rss2json.com/v1/api.json'
 const FEED_TIMEOUT_MS = 5_000
@@ -62,14 +65,16 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&[a-z]+;/gi, ' ').trim()
 }
 
+type CategoryRow = { id: string; name: string; feeds: unknown }
+
 async function fetchArticlesForUser(
   userId: string,
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any>,
   categoryIds: string[] | null
 ): Promise<RawArticle[]> {
   let q = supabase.from('categories').select('id, name, feeds').eq('user_id', userId)
   if (categoryIds?.length) q = q.in('id', categoryIds)
-  const { data: categories } = await q
+  const { data: categories } = (await q) as { data: CategoryRow[] | null; error: unknown }
 
   if (!categories?.length) return []
 
